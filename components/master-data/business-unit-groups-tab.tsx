@@ -1,0 +1,181 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Plus, Upload, Download, Edit, Trash2 } from "lucide-react"
+import {
+  getBusinessUnitGroups,
+  createBusinessUnitGroup,
+  updateBusinessUnitGroup,
+  deleteBusinessUnitGroup,
+  bulkUploadBusinessUnitGroups,
+} from "@/lib/actions/master-data"
+import BulkUploadDialog from "./bulk-upload-dialog"
+import EditDialog from "./edit-dialog"
+
+export default function BusinessUnitGroupsTab() {
+  const [data, setData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showBulkUpload, setShowBulkUpload] = useState(false)
+  const [editItem, setEditItem] = useState<any>(null)
+
+  const loadData = async () => {
+    setLoading(true)
+    const result = await getBusinessUnitGroups()
+    if (result.success && result.data) {
+      setData(result.data)
+    } else {
+      setData([])
+      console.error("Failed to load business unit groups:", result.error)
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const handleCreate = async (name: string, description?: string) => {
+    const result = await createBusinessUnitGroup(name, description)
+    if (result.success) {
+      await loadData()
+      return true
+    }
+    return false
+  }
+
+  const handleUpdate = async (id: number, name: string, description?: string) => {
+    const result = await updateBusinessUnitGroup(id, name, description)
+    if (result.success) {
+      await loadData()
+      setEditItem(null)
+      return true
+    }
+    return false
+  }
+
+  const handleDelete = async (id: number) => {
+    if (confirm("Are you sure you want to delete this business unit group?")) {
+      const result = await deleteBusinessUnitGroup(id)
+      if (result.success) {
+        await loadData()
+      }
+    }
+  }
+
+  const handleBulkUpload = async (items: any[]) => {
+    const result = await bulkUploadBusinessUnitGroups(items)
+    if (result.success) {
+      await loadData()
+      setShowBulkUpload(false)
+      alert(`Successfully uploaded ${result.count} business unit groups`)
+      return true
+    }
+    return false
+  }
+
+  const downloadSampleCSV = () => {
+    const csv =
+      "name,description\nIT Operations,Information Technology Operations\nCustomer Support,Customer Service Department"
+    const blob = new Blob([csv], { type: "text/csv" })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "business_unit_groups_sample.csv"
+    a.click()
+  }
+
+  if (loading) {
+    return <div className="p-6 text-center">Loading...</div>
+  }
+
+  return (
+    <div className="bg-white border border-border rounded-xl p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="font-poppins font-bold text-foreground">Business Unit Groups</h2>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={downloadSampleCSV}>
+            <Download className="w-4 h-4 mr-2" />
+            Sample CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowBulkUpload(true)}>
+            <Upload className="w-4 h-4 mr-2" />
+            Bulk Upload
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setEditItem({ id: null, name: "", description: "" })}
+            className="bg-gradient-to-r from-primary to-secondary"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add New
+          </Button>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left py-3 px-4 font-semibold">Name</th>
+              <th className="text-left py-3 px-4 font-semibold">Description</th>
+              <th className="text-right py-3 px-4 font-semibold">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data && data.length > 0 ? (
+              data.map((item) => (
+                <tr key={item.id} className="border-b border-border hover:bg-surface">
+                  <td className="py-3 px-4">{item.name}</td>
+                  <td className="py-3 px-4 text-foreground-secondary">{item.description || "-"}</td>
+                  <td className="py-3 px-4 text-right">
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="ghost" size="sm" onClick={() => setEditItem(item)}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)}>
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={3} className="py-6 text-center text-foreground-secondary">
+                  No business unit groups found. Click "Add New" to create one.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {showBulkUpload && (
+        <BulkUploadDialog
+          title="Bulk Upload Business Unit Groups"
+          fields={["name", "description"]}
+          onUpload={handleBulkUpload}
+          onClose={() => setShowBulkUpload(false)}
+        />
+      )}
+
+      {editItem && (
+        <EditDialog
+          title={editItem.id ? "Edit Business Unit Group" : "Add Business Unit Group"}
+          fields={[
+            { name: "name", label: "Name", type: "text", required: true },
+            { name: "description", label: "Description", type: "textarea" },
+          ]}
+          initialData={editItem}
+          onSave={(data) =>
+            editItem.id
+              ? handleUpdate(editItem.id, data.name, data.description)
+              : handleCreate(data.name, data.description)
+          }
+          onClose={() => setEditItem(null)}
+        />
+      )}
+    </div>
+  )
+}

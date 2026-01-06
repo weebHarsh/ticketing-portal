@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm dev)",
+      "Bash(curl:*)",
+      "Bash(grep:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(ls:*)",
+      "Bash(node -e:*)",
+      "Bash(chmod:*)",
+      "Bash(node scripts/setup-database.js:*)",
+      "Bash(node scripts/verify-database.js:*)",
+      "Bash(node scripts/setup-database-pg.js:*)",
+      "Bash(node scripts/run-sql-file.js:*)",
+      "Bash(node scripts/import-excel-data.js:*)",
+      "Bash(python3:*)",
+      "Bash(cat:*)",
+      "Bash(textutil:*)",
+      "Bash(npx vercel login)",
+      "Bash(sudo chown:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx vercel:*)"
+    ]
+  }
+}
