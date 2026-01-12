@@ -3,27 +3,40 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
-import { Copy, MoreVertical, Download, Eye, Trash2 } from "lucide-react"
-import { getTickets, getTicketById, softDeleteTicket } from "@/lib/actions/tickets"
+import { Eye, Edit, Trash2, Download, Paperclip } from "lucide-react"
+import {
+  getTickets,
+  getTicketById,
+  softDeleteTicket,
+  updateTicketAssignee,
+  getUsers,
+} from "@/lib/actions/tickets"
 
 interface Ticket {
   id: number
   ticket_id: string
   title: string
-  category: string
+  description: string
+  category_name: string | null
+  subcategory_name: string | null
   ticket_type: "support" | "requirement"
   status: "open" | "closed" | "hold"
   created_at: string
   assignee_name: string | null
+  assigned_to: number | null
+  spoc_name: string | null
+  spoc_user_id: number | null
   estimated_duration: string
   is_deleted: boolean
+  attachment_count: number
   business_unit_group_id: number
-  project_name: string
-  category_id: number
-  subcategory_id: number
-  description: string
-  assigned_to: number
-  product_release_name: string
+  group_name: string | null
+}
+
+interface User {
+  id: number
+  full_name: string
+  email: string
 }
 
 interface TicketsTableProps {
@@ -34,16 +47,33 @@ interface TicketsTableProps {
     search?: string
     dateFrom?: string
     dateTo?: string
+    myTeam?: boolean
+    userId?: number
   }
 }
 
 export default function TicketsTable({ filters }: TicketsTableProps) {
   const router = useRouter()
   const [tickets, setTickets] = useState<Ticket[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [editingAssignee, setEditingAssignee] = useState<number | null>(null)
+  const [currentUser, setCurrentUser] = useState<any>(null)
+
+  useEffect(() => {
+    try {
+      const userData = localStorage.getItem("user")
+      if (userData) {
+        setCurrentUser(JSON.parse(userData))
+      }
+    } catch (e) {
+      console.error("Failed to parse user data:", e)
+    }
+  }, [])
 
   useEffect(() => {
     loadTickets()
+    loadUsers()
   }, [filters])
 
   const loadTickets = async () => {
@@ -55,12 +85,17 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
     setIsLoading(false)
   }
 
+  const loadUsers = async () => {
+    const result = await getUsers()
+    if (result.success && result.data) {
+      setUsers(result.data as User[])
+    }
+  }
+
   const handleDuplicate = async (ticketId: number) => {
-    console.log("[v0] Duplicating ticket:", ticketId)
     const result = await getTicketById(ticketId)
-    if (result.success && result.data.ticket) {
-      const ticket = result.data.ticket
-      // Navigate to create page with ticket data as URL params
+    if (result.success && result.data) {
+      const ticket = result.data
       const params = new URLSearchParams({
         duplicate: "true",
         ticketType: ticket.ticket_type || "support",
@@ -79,10 +114,13 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
   }
 
   const handleDelete = async (ticketId: number) => {
-    if (!confirm("Are you sure you want to delete this ticket? It will be marked as deleted but can be restored.")) {
+    if (
+      !confirm(
+        "Are you sure you want to delete this ticket? It will be marked as deleted but can be restored."
+      )
+    ) {
       return
     }
-    console.log("[v0] Deleting ticket:", ticketId)
     const result = await softDeleteTicket(ticketId)
     if (result.success) {
       loadTickets()
@@ -91,15 +129,30 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
     }
   }
 
-  const statusColor = {
-    open: "status-open",
-    closed: "status-closed",
-    hold: "status-hold",
+  const handleAssigneeChange = async (ticketId: number, newAssigneeId: number) => {
+    const result = await updateTicketAssignee(ticketId, newAssigneeId)
+    if (result.success) {
+      loadTickets()
+      setEditingAssignee(null)
+    } else {
+      alert("Failed to update assignee")
+    }
   }
 
-  const typeLabel = {
-    support: "Support",
-    requirement: "Requirement",
+  const canEditAssignee = (ticket: Ticket) => {
+    if (!currentUser) return false
+    return (
+      currentUser.id === ticket.spoc_user_id ||
+      currentUser.role === "admin" ||
+      currentUser.role === "Admin"
+    )
+  }
+
+  const statusColor = {
+    open: "bg-blue-100 text-blue-700",
+    closed: "bg-green-100 text-green-700",
+    hold: "bg-yellow-100 text-yellow-700",
+    "in-progress": "bg-purple-100 text-purple-700",
   }
 
   if (isLoading) {
@@ -126,47 +179,156 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
         <table className="w-full">
           <thead className="bg-surface border-b border-border">
             <tr>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Ticket ID</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Title</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Type</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Status</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Assignee</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Duration</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Created</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Actions</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider w-12">
+                #
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+                Date/Time
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+                Category
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider max-w-xs">
+                Description
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+                SPOC
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+                Assignee
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-foreground uppercase tracking-wider w-20">
+                Files
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-foreground uppercase tracking-wider w-28">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {tickets.map((ticket) => (
+            {tickets.map((ticket, index) => (
               <tr
                 key={ticket.id}
-                className={`hover:bg-surface transition-colors ${ticket.is_deleted ? "opacity-50 bg-gray-100" : ""}`}
+                className={`hover:bg-surface transition-colors ${
+                  ticket.is_deleted ? "opacity-50 bg-gray-50" : ""
+                }`}
               >
-                <td
-                  className="px-6 py-4 text-sm font-medium text-primary hover:underline cursor-pointer"
-                  onClick={() => router.push(`/tickets/${ticket.id}`)}
-                >
-                  {ticket.ticket_id}
-                  {ticket.is_deleted && <span className="ml-2 text-xs text-red-600">(Deleted)</span>}
+                {/* Row Number */}
+                <td className="px-4 py-3 text-sm text-foreground-secondary">{index + 1}</td>
+
+                {/* Date/Time Stacked */}
+                <td className="px-4 py-3">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">
+                      {format(new Date(ticket.created_at), "MMM dd, yyyy")}
+                    </span>
+                    <span className="text-xs text-foreground-secondary">
+                      {format(new Date(ticket.created_at), "hh:mm a")}
+                    </span>
+                  </div>
                 </td>
-                <td className="px-6 py-4 text-sm text-foreground max-w-xs truncate">{ticket.title}</td>
-                <td className="px-6 py-4 text-sm">
-                  <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                    {typeLabel[ticket.ticket_type]}
-                  </span>
+
+                {/* Category/Subcategory Stacked */}
+                <td className="px-4 py-3">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">
+                      {ticket.category_name || "N/A"}
+                    </span>
+                    {ticket.subcategory_name && (
+                      <span className="text-xs text-foreground-secondary">
+                        {ticket.subcategory_name}
+                      </span>
+                    )}
+                  </div>
                 </td>
-                <td className="px-6 py-4">
-                  <span className={`status-badge ${statusColor[ticket.status]}`}>
+
+                {/* Description Truncated */}
+                <td className="px-4 py-3">
+                  <p
+                    className="text-sm text-foreground max-w-xs truncate cursor-pointer hover:text-primary"
+                    onClick={() => router.push(`/tickets/${ticket.id}`)}
+                    title={ticket.description || ticket.title}
+                  >
+                    {ticket.description || ticket.title}
+                  </p>
+                  {ticket.is_deleted && (
+                    <span className="text-xs text-red-600">(Deleted)</span>
+                  )}
+                </td>
+
+                {/* SPOC */}
+                <td className="px-4 py-3 text-sm text-foreground">
+                  {ticket.spoc_name || "-"}
+                </td>
+
+                {/* Assignee with inline edit */}
+                <td className="px-4 py-3">
+                  {editingAssignee === ticket.id ? (
+                    <select
+                      className="text-sm border border-border rounded px-2 py-1 w-full max-w-[140px]"
+                      value={ticket.assigned_to || ""}
+                      onChange={(e) =>
+                        handleAssigneeChange(ticket.id, parseInt(e.target.value))
+                      }
+                      onBlur={() => setEditingAssignee(null)}
+                      autoFocus
+                    >
+                      <option value="">Unassigned</option>
+                      {users.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.full_name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span
+                      className={`text-sm ${
+                        canEditAssignee(ticket)
+                          ? "cursor-pointer hover:text-primary hover:underline"
+                          : ""
+                      }`}
+                      onClick={() =>
+                        canEditAssignee(ticket) && setEditingAssignee(ticket.id)
+                      }
+                    >
+                      {ticket.assignee_name || "Unassigned"}
+                    </span>
+                  )}
+                </td>
+
+                {/* Status Badge */}
+                <td className="px-4 py-3">
+                  <span
+                    className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
+                      statusColor[ticket.status] || statusColor["open"]
+                    }`}
+                  >
                     {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-sm text-foreground">{ticket.assignee_name || "Unassigned"}</td>
-                <td className="px-6 py-4 text-sm text-foreground-secondary">{ticket.estimated_duration || "N/A"}</td>
-                <td className="px-6 py-4 text-sm text-foreground-secondary">
-                  {format(new Date(ticket.created_at), "MMM dd, yyyy")}
+
+                {/* Attachments */}
+                <td className="px-4 py-3 text-center">
+                  {ticket.attachment_count > 0 ? (
+                    <button
+                      className="inline-flex items-center gap-1 text-primary hover:text-primary/80"
+                      onClick={() => router.push(`/tickets/${ticket.id}`)}
+                      title={`${ticket.attachment_count} attachment(s)`}
+                    >
+                      <Paperclip className="w-4 h-4" />
+                      <span className="text-xs font-medium">{ticket.attachment_count}</span>
+                    </button>
+                  ) : (
+                    <span className="text-foreground-secondary">-</span>
+                  )}
                 </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
+
+                {/* Actions */}
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-center gap-1">
                     <button
                       className="p-1.5 hover:bg-surface rounded transition-colors"
                       title="View"
@@ -176,10 +338,10 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                     </button>
                     <button
                       className="p-1.5 hover:bg-surface rounded transition-colors"
-                      title="Duplicate"
-                      onClick={() => handleDuplicate(ticket.id)}
+                      title="Edit"
+                      onClick={() => router.push(`/tickets/${ticket.id}/edit`)}
                     >
-                      <Copy className="w-4 h-4 text-foreground-secondary" />
+                      <Edit className="w-4 h-4 text-foreground-secondary" />
                     </button>
                     {!ticket.is_deleted && (
                       <button
@@ -198,7 +360,7 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
         </table>
       </div>
 
-      <div className="px-6 py-4 border-t border-border flex items-center justify-between">
+      <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-surface/50">
         <p className="text-sm text-foreground-secondary">
           Showing {tickets.length} ticket{tickets.length !== 1 ? "s" : ""}
         </p>

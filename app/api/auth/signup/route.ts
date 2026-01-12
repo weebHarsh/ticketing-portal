@@ -3,13 +3,13 @@ import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, full_name, password, role } = await request.json()
+    const { email, full_name, password, business_unit_group_id } = await request.json()
 
-    if (!email || !full_name || !password || !role) {
+    if (!email || !full_name || !password || !business_unit_group_id) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const result = await signupUser(email, full_name, password, role)
+    const result = await signupUser(email, full_name, password, business_unit_group_id)
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 })

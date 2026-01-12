@@ -1,9 +1,16 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import { useState, useEffect, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { AlertCircle, UserPlus } from "lucide-react"
 import Link from "next/link"
+import { getBusinessUnitGroups } from "@/lib/actions/auth"
+
+interface BusinessUnitGroup {
+  id: number
+  name: string
+}
 
 interface SignupFormProps {
   onSuccess?: () => void
@@ -15,9 +22,20 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
   const [fullName, setFullName] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [role, setRole] = useState("Support Agent")
+  const [groupId, setGroupId] = useState("")
+  const [groups, setGroups] = useState<BusinessUnitGroup[]>([])
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    async function loadGroups() {
+      const result = await getBusinessUnitGroups()
+      if (result.success && result.data) {
+        setGroups(result.data as BusinessUnitGroup[])
+      }
+    }
+    loadGroups()
+  }, [])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -25,7 +43,7 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
     setIsLoading(true)
 
     try {
-      if (!email || !fullName || !password || !confirmPassword) {
+      if (!email || !fullName || !password || !confirmPassword || !groupId) {
         setError("All fields are required")
         return
       }
@@ -43,7 +61,12 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
       const response = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, full_name: fullName, password, role }),
+        body: JSON.stringify({
+          email,
+          full_name: fullName,
+          password,
+          business_unit_group_id: parseInt(groupId),
+        }),
       })
 
       const data = await response.json()
@@ -77,9 +100,13 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
       <div className="bg-white rounded-xl shadow-2xl p-8">
         {/* Logo and Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-lg mb-4">
-            <span className="text-white font-sans font-bold text-lg">T</span>
-          </div>
+          <Image
+            src="/company-logo.svg"
+            alt="Company Logo"
+            width={48}
+            height={48}
+            className="w-12 h-12 mx-auto mb-4"
+          />
           <h1 className="text-2xl font-sans font-bold text-foreground mb-2">Create Account</h1>
           <p className="text-muted-foreground text-sm">Ticketing Portal - Sharpen Focus</p>
         </div>
@@ -120,20 +147,21 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
             />
           </div>
 
-          {/* Role Select */}
+          {/* Group Select */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Role</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Group</label>
             <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
+              value={groupId}
+              onChange={(e) => setGroupId(e.target.value)}
               className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
               disabled={isLoading}
             >
-              <option value="Support Agent">Support Agent</option>
-              <option value="Team Lead">Team Lead</option>
-              <option value="Manager">Manager</option>
-              <option value="Developer">Developer</option>
-              <option value="Admin">Admin</option>
+              <option value="">Select your group</option>
+              {groups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
             </select>
           </div>
 

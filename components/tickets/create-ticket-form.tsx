@@ -4,7 +4,9 @@ import type React from "react"
 
 import { useState, useEffect, type FormEvent } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { AlertCircle, CheckCircle, Plus, X } from "lucide-react"
+import { AlertCircle, CheckCircle, Plus, X, Paperclip } from "lucide-react"
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 import { createTicket, getUsers } from "@/lib/actions/tickets"
 import {
   getBusinessUnitGroups,
@@ -22,7 +24,6 @@ interface FormData {
   projectName: string
   categoryId: string
   subcategoryId: string
-  title: string
   description: string
   estimatedDuration: string
   assigneeId: string
@@ -41,13 +42,13 @@ export default function CreateTicketForm() {
     projectName: searchParams.get("projectName") || "",
     categoryId: searchParams.get("categoryId") || "",
     subcategoryId: searchParams.get("subcategoryId") || "",
-    title: searchParams.get("title") || "",
     description: searchParams.get("description") || "",
     estimatedDuration: searchParams.get("estimatedDuration") || "",
     assigneeId: searchParams.get("assigneeId") || "",
     productReleaseName: searchParams.get("productReleaseName") || "",
     attachments: [],
   })
+  const [userGroupId, setUserGroupId] = useState<string | null>(null)
 
   const [businessUnitGroups, setBusinessUnitGroups] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
@@ -60,8 +61,27 @@ export default function CreateTicketForm() {
   const [success, setSuccess] = useState(false)
 
   useEffect(() => {
+    // Load user's group from localStorage
+    try {
+      const userData = localStorage.getItem("user")
+      if (userData) {
+        const user = JSON.parse(userData)
+        if (user.business_unit_group_id) {
+          setUserGroupId(user.business_unit_group_id.toString())
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse user data:", e)
+    }
     loadInitialData()
   }, [])
+
+  // Pre-select user's group when data is loaded
+  useEffect(() => {
+    if (userGroupId && !formData.businessUnitGroupId && !isDuplicate) {
+      setFormData((prev) => ({ ...prev, businessUnitGroupId: userGroupId }))
+    }
+  }, [userGroupId, businessUnitGroups])
 
   const loadInitialData = async () => {
     console.log("[v0] Loading initial data for create ticket form")
@@ -107,7 +127,7 @@ export default function CreateTicketForm() {
       loadSubcategories(Number(formData.categoryId))
     } else {
       setSubcategories([])
-      setFormData((prev) => ({ ...prev, subcategoryId: "", title: "", estimatedDuration: "", assigneeId: "" }))
+      setFormData((prev) => ({ ...prev, subcategoryId: "", description: "", estimatedDuration: "", assigneeId: "" }))
     }
   }, [formData.categoryId])
 
@@ -140,9 +160,10 @@ export default function CreateTicketForm() {
     if (result.success && result.data) {
       const { auto_title_template, estimated_duration, spoc_user_id } = result.data
 
+      // Auto-fill description from the template (previously was title)
       setFormData((prev) => ({
         ...prev,
-        title: auto_title_template || prev.title,
+        description: auto_title_template || prev.description,
         estimatedDuration: estimated_duration ? `${estimated_duration} minutes` : "",
         assigneeId: spoc_user_id ? spoc_user_id.toString() : prev.assigneeId,
       }))
@@ -195,11 +216,31 @@ export default function CreateTicketForm() {
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files || []
-    setFormData((prev) => ({
-      ...prev,
-      attachments: [...prev.attachments, ...Array.from(files)],
-    }))
+    const files = Array.from(e.target.files || [])
+    const validFiles: File[] = []
+    const invalidFiles: string[] = []
+
+    files.forEach((file) => {
+      if (file.size > MAX_FILE_SIZE) {
+        invalidFiles.push(`${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`)
+      } else {
+        validFiles.push(file)
+      }
+    })
+
+    if (invalidFiles.length > 0) {
+      setError(`Files exceed 5MB limit: ${invalidFiles.join(", ")}`)
+    }
+
+    if (validFiles.length > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        attachments: [...prev.attachments, ...validFiles],
+      }))
+    }
+
+    // Reset the input
+    e.target.value = ""
   }
 
   const removeAttachment = (index: number) => {
@@ -220,11 +261,17 @@ export default function CreateTicketForm() {
       if (
         !formData.businessUnitGroupId ||
         !formData.categoryId ||
-        !formData.title ||
         !formData.assigneeId
       ) {
-        throw new Error("Please fill in all required fields")
+        throw new Error("Please fill in all required fields (Group, Category, Assignee)")
       }
+
+      // Generate title from category + subcategory
+      const selectedCategory = categories.find((c) => c.id.toString() === formData.categoryId)
+      const selectedSubcategory = subcategories.find((s) => s.id.toString() === formData.subcategoryId)
+      const generatedTitle = selectedSubcategory
+        ? `${selectedCategory?.name} - ${selectedSubcategory?.name}`
+        : selectedCategory?.name || "Untitled Ticket"
 
       const result = await createTicket({
         ticketType: formData.ticketType,
@@ -232,7 +279,7 @@ export default function CreateTicketForm() {
         projectName: formData.projectName,
         categoryId: Number(formData.categoryId),
         subcategoryId: formData.subcategoryId ? Number(formData.subcategoryId) : null,
-        title: formData.title,
+        title: generatedTitle,
         description: formData.description || "",
         estimatedDuration: formData.estimatedDuration,
         assigneeId: Number(formData.assigneeId),
@@ -243,6 +290,28 @@ export default function CreateTicketForm() {
 
       if (!result.success) {
         throw new Error(result.error || "Failed to create ticket")
+      }
+
+      // Upload attachments if any
+      if (formData.attachments.length > 0) {
+        const ticketId = result.data.id
+        const userId = JSON.parse(localStorage.getItem("user") || "{}").id
+
+        for (const file of formData.attachments) {
+          const uploadFormData = new FormData()
+          uploadFormData.append("file", file)
+          uploadFormData.append("ticketId", ticketId.toString())
+          uploadFormData.append("uploadedBy", userId?.toString() || "")
+
+          const uploadResponse = await fetch("/api/attachments", {
+            method: "POST",
+            body: uploadFormData,
+          })
+
+          if (!uploadResponse.ok) {
+            console.error("Failed to upload attachment:", file.name)
+          }
+        }
       }
 
       setSuccess(true)
@@ -303,7 +372,7 @@ export default function CreateTicketForm() {
         <h3 className="font-poppins font-semibold text-foreground">Ticket Classification</h3>
 
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Business Unit Group *</label>
+          <label className="block text-sm font-medium text-foreground mb-2">Group *</label>
           <Combobox
             options={businessUnitGroups.map((bu) => ({
               value: bu.id.toString(),
@@ -312,9 +381,9 @@ export default function CreateTicketForm() {
             }))}
             value={formData.businessUnitGroupId}
             onChange={handleBusinessUnitChange}
-            placeholder="Select a business unit..."
-            searchPlaceholder="Search business units..."
-            emptyText="No business units found"
+            placeholder="Select your group..."
+            searchPlaceholder="Search groups..."
+            emptyText="No groups found"
           />
         </div>
 
@@ -330,9 +399,9 @@ export default function CreateTicketForm() {
             }))}
             value={formData.projectName}
             onChange={(value) => setFormData((prev) => ({ ...prev, projectName: value }))}
-            placeholder={formData.businessUnitGroupId ? "Select a project..." : "Select a business unit first"}
+            placeholder={formData.businessUnitGroupId ? "Select a project..." : "Select a group first"}
             searchPlaceholder="Search projects..."
-            emptyText="No projects found for this business unit"
+            emptyText="No projects found for this group"
             disabled={!formData.businessUnitGroupId}
           />
         </div>
@@ -347,7 +416,7 @@ export default function CreateTicketForm() {
             }))}
             value={formData.categoryId}
             onChange={handleCategoryChange}
-            placeholder={formData.businessUnitGroupId ? "Select a category..." : "Select a business unit first"}
+            placeholder={formData.businessUnitGroupId ? "Select a category..." : "Select a group first"}
             searchPlaceholder="Search categories..."
             emptyText="No categories found"
             disabled={!formData.businessUnitGroupId}
@@ -375,16 +444,15 @@ export default function CreateTicketForm() {
 
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">
-            Ticket Title * <span className="text-xs text-blue-600 font-normal">(Auto-filled from classification)</span>
+            Description <span className="text-xs text-blue-600 font-normal">(Auto-filled from classification - editable)</span>
           </label>
-          <input
-            type="text"
-            name="title"
-            value={formData.title}
+          <textarea
+            name="description"
+            value={formData.description}
             onChange={handleInputChange}
-            required
+            placeholder="Auto-filled based on category and sub-category selection. You can edit this."
+            rows={4}
             className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
-            placeholder="Auto-populated based on category and sub-category"
           />
         </div>
 
@@ -403,21 +471,7 @@ export default function CreateTicketForm() {
       </div>
 
       <div className="bg-white border border-border rounded-xl p-6 space-y-4">
-        <h3 className="font-poppins font-semibold text-foreground">Ticket Details</h3>
-
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-2">
-            Description <span className="text-xs text-foreground-secondary font-normal">(Optional)</span>
-          </label>
-          <textarea
-            name="description"
-            value={formData.description}
-            onChange={handleInputChange}
-            placeholder="Provide additional details about the ticket..."
-            rows={5}
-            className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
-          />
-        </div>
+        <h3 className="font-poppins font-semibold text-foreground">Assignment & Details</h3>
 
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">
@@ -458,12 +512,19 @@ export default function CreateTicketForm() {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Attachments</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Attachments
+            {formData.attachments.length > 0 && (
+              <span className="text-xs text-foreground-secondary font-normal ml-2">
+                ({formData.attachments.length} file{formData.attachments.length > 1 ? "s" : ""})
+              </span>
+            )}
+          </label>
           <label className="flex items-center justify-center w-full px-4 py-6 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors">
             <div className="text-center">
-              <Plus className="w-6 h-6 text-foreground-secondary mx-auto mb-2" />
+              <Paperclip className="w-6 h-6 text-foreground-secondary mx-auto mb-2" />
               <span className="text-sm font-medium text-foreground">Click to upload or drag and drop</span>
-              <p className="text-xs text-foreground-secondary mt-1">Max file size: 50MB</p>
+              <p className="text-xs text-foreground-secondary mt-1">Max file size: 5MB per file</p>
             </div>
             <input type="file" multiple onChange={handleFileChange} className="hidden" />
           </label>
@@ -475,11 +536,19 @@ export default function CreateTicketForm() {
                   key={idx}
                   className="flex items-center justify-between p-3 bg-surface border border-border rounded-lg"
                 >
-                  <span className="text-sm text-foreground truncate">{file.name}</span>
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <Paperclip className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-foreground truncate">{file.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(file.size / 1024).toFixed(1)} KB
+                      </p>
+                    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={() => removeAttachment(idx)}
-                    className="p-1 hover:bg-white rounded transition-colors"
+                    className="p-1.5 hover:bg-red-50 rounded transition-colors flex-shrink-0"
                   >
                     <X className="w-4 h-4 text-danger" />
                   </button>

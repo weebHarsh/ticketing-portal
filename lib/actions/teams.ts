@@ -153,6 +153,16 @@ export async function removeTeamMember(id: number) {
   }
 }
 
+export async function leaveTeam(userId: number, teamId: number) {
+  try {
+    await sql`DELETE FROM team_members WHERE user_id = ${userId} AND team_id = ${teamId}`
+    return { success: true }
+  } catch (error) {
+    console.error("Error leaving team:", error)
+    return { success: false, error: "Failed to leave team" }
+  }
+}
+
 export async function getUserTeams(userId: number) {
   try {
     const result = await sql`

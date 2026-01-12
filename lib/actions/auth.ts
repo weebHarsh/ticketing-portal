@@ -23,7 +23,22 @@ export async function getCurrentUser() {
   }
 }
 
-export async function signupUser(email: string, fullName: string, password: string, role: string) {
+export async function getBusinessUnitGroups() {
+  try {
+    const result = await sql`SELECT id, name FROM business_unit_groups ORDER BY name`
+    return { success: true, data: result }
+  } catch (error) {
+    console.error("Error fetching business unit groups:", error)
+    return { success: false, error: "Failed to fetch groups" }
+  }
+}
+
+export async function signupUser(
+  email: string,
+  fullName: string,
+  password: string,
+  businessUnitGroupId: number
+) {
   try {
     const existingUser = await sql`SELECT * FROM users WHERE email = ${email}`
 
@@ -33,12 +48,25 @@ export async function signupUser(email: string, fullName: string, password: stri
 
     const passwordHash = await bcrypt.hash(password, 10)
 
-    const result =
-      await sql`INSERT INTO users (email, full_name, password_hash, role) VALUES (${email}, ${fullName}, ${passwordHash}, ${role}) RETURNING id, email, full_name, role`
+    // Default role is 'user', business_unit_group_id links to their group
+    const result = await sql`
+      INSERT INTO users (email, full_name, password_hash, role, business_unit_group_id)
+      VALUES (${email}, ${fullName}, ${passwordHash}, 'user', ${businessUnitGroupId})
+      RETURNING id, email, full_name, role, business_unit_group_id
+    `
+
+    // Get the group name for the response
+    const groupResult = await sql`
+      SELECT name FROM business_unit_groups WHERE id = ${businessUnitGroupId}
+    `
+    const groupName = groupResult[0]?.name || ''
 
     return {
       success: true,
-      user: result[0],
+      user: {
+        ...result[0],
+        group_name: groupName,
+      },
     }
   } catch (error) {
     console.error("Signup error:", error)
@@ -48,7 +76,12 @@ export async function signupUser(email: string, fullName: string, password: stri
 
 export async function loginUser(email: string, password: string) {
   try {
-    const result = await sql`SELECT * FROM users WHERE email = ${email}`
+    const result = await sql`
+      SELECT u.*, bug.name as group_name
+      FROM users u
+      LEFT JOIN business_unit_groups bug ON u.business_unit_group_id = bug.id
+      WHERE u.email = ${email}
+    `
 
     if (!result || result.length === 0) {
       return { success: false, error: "Invalid email or password" }
@@ -69,6 +102,8 @@ export async function loginUser(email: string, password: string) {
         email: user.email,
         full_name: user.full_name,
         role: user.role,
+        business_unit_group_id: user.business_unit_group_id,
+        group_name: user.group_name,
       },
     }
   } catch (error) {

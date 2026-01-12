@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { AlertCircle, LogIn } from "lucide-react"
 
 interface User {
@@ -63,9 +64,13 @@ export function LoginForm() {
       <div className="bg-white rounded-xl shadow-2xl p-8">
         {/* Logo and Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-lg mb-4">
-            <span className="text-white font-sans font-bold text-lg">T</span>
-          </div>
+          <Image
+            src="/company-logo.svg"
+            alt="Company Logo"
+            width={48}
+            height={48}
+            className="w-12 h-12 mx-auto mb-4"
+          />
           <h1 className="text-2xl font-sans font-bold text-foreground mb-2">Ticketing Portal</h1>
           <p className="text-muted-foreground text-sm">Sharpen Focus - Customer Success</p>
         </div>

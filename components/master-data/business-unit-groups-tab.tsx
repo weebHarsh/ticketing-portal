@@ -55,7 +55,7 @@ export default function BusinessUnitGroupsTab() {
   }
 
   const handleDelete = async (id: number) => {
-    if (confirm("Are you sure you want to delete this business unit group?")) {
+    if (confirm("Are you sure you want to delete this group?")) {
       const result = await deleteBusinessUnitGroup(id)
       if (result.success) {
         await loadData()
@@ -68,7 +68,7 @@ export default function BusinessUnitGroupsTab() {
     if (result.success) {
       await loadData()
       setShowBulkUpload(false)
-      alert(`Successfully uploaded ${result.count} business unit groups`)
+      alert(`Successfully uploaded ${result.count} groups`)
       return true
     }
     return false
@@ -92,7 +92,7 @@ export default function BusinessUnitGroupsTab() {
   return (
     <div className="bg-white border border-border rounded-xl p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="font-poppins font-bold text-foreground">Business Unit Groups</h2>
+        <h2 className="font-poppins font-bold text-foreground">Groups</h2>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={downloadSampleCSV}>
             <Download className="w-4 h-4 mr-2" />
@@ -143,7 +143,7 @@ export default function BusinessUnitGroupsTab() {
             ) : (
               <tr>
                 <td colSpan={3} className="py-6 text-center text-foreground-secondary">
-                  No business unit groups found. Click "Add New" to create one.
+                  No groups found. Click "Add New" to create one.
                 </td>
               </tr>
             )}
@@ -153,7 +153,7 @@ export default function BusinessUnitGroupsTab() {
 
       {showBulkUpload && (
         <BulkUploadDialog
-          title="Bulk Upload Business Unit Groups"
+          title="Bulk Upload Groups"
           fields={["name", "description"]}
           onUpload={handleBulkUpload}
           onClose={() => setShowBulkUpload(false)}
@@ -162,7 +162,7 @@ export default function BusinessUnitGroupsTab() {
 
       {editItem && (
         <EditDialog
-          title={editItem.id ? "Edit Business Unit Group" : "Add Business Unit Group"}
+          title={editItem.id ? "Edit Group" : "Add Group"}
           fields={[
             { name: "name", label: "Name", type: "text", required: true },
             { name: "description", label: "Description", type: "textarea" },

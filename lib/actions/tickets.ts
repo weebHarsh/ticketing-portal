@@ -12,6 +12,8 @@ export async function getTickets(filters?: {
   dateFrom?: string
   dateTo?: string
   includeDeleted?: boolean
+  myTeam?: boolean
+  userId?: number
 }) {
   try {
     const values: any[] = []
@@ -20,10 +22,19 @@ export async function getTickets(filters?: {
       SELECT
         t.*,
         u.full_name as creator_name,
-        a.full_name as assignee_name
+        a.full_name as assignee_name,
+        spoc.full_name as spoc_name,
+        c.name as category_name,
+        sc.name as subcategory_name,
+        bug.name as group_name,
+        (SELECT COUNT(*) FROM attachments att WHERE att.ticket_id = t.id) as attachment_count
       FROM tickets t
       LEFT JOIN users u ON t.created_by = u.id
       LEFT JOIN users a ON t.assigned_to = a.id
+      LEFT JOIN users spoc ON t.spoc_user_id = spoc.id
+      LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN subcategories sc ON t.subcategory_id = sc.id
+      LEFT JOIN business_unit_groups bug ON t.business_unit_group_id = bug.id
       WHERE 1=1
     `
 
@@ -47,10 +58,18 @@ export async function getTickets(filters?: {
       query += ` AND t.assigned_to = $${values.length}`
     }
 
+    // Universal search across multiple fields
     if (filters?.search) {
       const searchValue = `%${filters.search}%`
-      values.push(searchValue, searchValue, searchValue)
-      query += ` AND (t.title ILIKE $${values.length - 2} OR t.ticket_id ILIKE $${values.length - 1} OR t.description ILIKE $${values.length})`
+      values.push(searchValue, searchValue, searchValue, searchValue, searchValue, searchValue)
+      query += ` AND (
+        t.title ILIKE $${values.length - 5} OR
+        t.ticket_id ILIKE $${values.length - 4} OR
+        t.description ILIKE $${values.length - 3} OR
+        u.full_name ILIKE $${values.length - 2} OR
+        a.full_name ILIKE $${values.length - 1} OR
+        c.name ILIKE $${values.length}
+      )`
     }
 
     if (filters?.dateFrom) {
@@ -61,6 +80,23 @@ export async function getTickets(filters?: {
     if (filters?.dateTo) {
       values.push(filters.dateTo)
       query += ` AND t.created_at <= $${values.length}`
+    }
+
+    // My Team filter - show tickets where team members are creator OR assignee
+    if (filters?.myTeam && filters?.userId) {
+      values.push(filters.userId)
+      query += ` AND (
+        t.created_by IN (
+          SELECT tm2.user_id FROM team_members tm1
+          JOIN team_members tm2 ON tm1.team_id = tm2.team_id
+          WHERE tm1.user_id = $${values.length}
+        )
+        OR t.assigned_to IN (
+          SELECT tm2.user_id FROM team_members tm1
+          JOIN team_members tm2 ON tm1.team_id = tm2.team_id
+          WHERE tm1.user_id = $${values.length}
+        )
+      )`
     }
 
     query += ` ORDER BY t.created_at DESC`
@@ -325,5 +361,41 @@ export async function getUsers() {
   } catch (error) {
     console.error("[v0] Error fetching users:", error)
     return { success: false, error: "Failed to fetch users", data: [] }
+  }
+}
+
+export async function updateTicketAssignee(ticketId: number, assigneeId: number) {
+  try {
+    await sql`
+      UPDATE tickets
+      SET assigned_to = ${assigneeId}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${ticketId}
+    `
+
+    revalidatePath("/tickets")
+    revalidatePath(`/tickets/${ticketId}`)
+
+    return { success: true }
+  } catch (error) {
+    console.error("[v0] Error updating ticket assignee:", error)
+    return { success: false, error: "Failed to update assignee" }
+  }
+}
+
+export async function getTeamMembers(userId: number) {
+  try {
+    const result = await sql`
+      SELECT DISTINCT u.id, u.full_name, u.email
+      FROM users u
+      JOIN team_members tm ON u.id = tm.user_id
+      WHERE tm.team_id IN (
+        SELECT team_id FROM team_members WHERE user_id = ${userId}
+      )
+      ORDER BY u.full_name
+    `
+    return { success: true, data: result }
+  } catch (error) {
+    console.error("[v0] Error fetching team members:", error)
+    return { success: false, error: "Failed to fetch team members", data: [] }
   }
 }

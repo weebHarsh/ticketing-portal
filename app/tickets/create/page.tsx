@@ -9,8 +9,8 @@ export default function CreateTicketPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-5xl">
-        <div className="mb-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-8 text-center">
           <h1 className="text-3xl font-poppins font-bold text-foreground mb-2">Create New Ticket</h1>
           <p className="text-foreground-secondary">
             Fill in the details below to create a new work ticket. Fields will auto-populate based on your selections.

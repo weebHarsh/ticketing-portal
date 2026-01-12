@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import DashboardLayout from "@/components/layout/dashboard-layout"
-import { ArrowLeft, Edit, MessageSquare, Paperclip, Clock, User, Calendar, Tag } from "lucide-react"
+import { ArrowLeft, Edit, MessageSquare, Paperclip, Clock, User, Calendar, Tag, Download, FileText } from "lucide-react"
 import { getTicketById, updateTicketStatus, addComment } from "@/lib/actions/tickets"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
@@ -167,27 +167,51 @@ export default function TicketDetailPage() {
             </div>
 
             {/* Attachments */}
-            {ticket.attachments?.length > 0 && (
-              <div className="bg-white border border-border rounded-xl p-6">
-                <h2 className="font-poppins font-bold text-foreground mb-4 flex items-center gap-2">
-                  <Paperclip className="w-5 h-5" />
-                  Attachments ({ticket.attachments.length})
-                </h2>
+            <div className="bg-white border border-border rounded-xl p-6">
+              <h2 className="font-poppins font-bold text-foreground mb-4 flex items-center gap-2">
+                <Paperclip className="w-5 h-5" />
+                Attachments ({ticket.attachments?.length || 0})
+              </h2>
+              {ticket.attachments?.length > 0 ? (
                 <div className="space-y-2">
                   {ticket.attachments.map((attachment: any) => (
                     <div
                       key={attachment.id}
                       className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-surface transition-colors"
                     >
-                      <span className="text-sm text-foreground">{attachment.file_name}</span>
-                      <Button variant="ghost" size="sm">
-                        Download
-                      </Button>
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-5 h-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{attachment.file_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {attachment.file_size ? `${(attachment.file_size / 1024).toFixed(1)} KB` : "Unknown size"}
+                            {attachment.uploader_name && ` • Uploaded by ${attachment.uploader_name}`}
+                          </p>
+                        </div>
+                      </div>
+                      {attachment.file_url ? (
+                        <a
+                          href={attachment.file_url}
+                          download={attachment.file_name}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                        >
+                          <Download className="w-4 h-4" />
+                          Download
+                        </a>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">No file URL</span>
+                      )}
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No attachments yet. Add attachments when editing this ticket.
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Sidebar */}
