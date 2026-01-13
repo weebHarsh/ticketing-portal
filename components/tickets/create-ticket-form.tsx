@@ -26,7 +26,7 @@ interface FormData {
   subcategoryId: string
   description: string
   estimatedDuration: string
-  assigneeId: string
+  spocId: string
   productReleaseName: string
   attachments: File[]
 }
@@ -44,7 +44,7 @@ export default function CreateTicketForm() {
     subcategoryId: searchParams.get("subcategoryId") || "",
     description: searchParams.get("description") || "",
     estimatedDuration: searchParams.get("estimatedDuration") || "",
-    assigneeId: searchParams.get("assigneeId") || "",
+    spocId: searchParams.get("spocId") || "",
     productReleaseName: searchParams.get("productReleaseName") || "",
     attachments: [],
   })
@@ -127,9 +127,16 @@ export default function CreateTicketForm() {
       loadSubcategories(Number(formData.categoryId))
     } else {
       setSubcategories([])
-      setFormData((prev) => ({ ...prev, subcategoryId: "", description: "", estimatedDuration: "", assigneeId: "" }))
+      setFormData((prev) => ({ ...prev, subcategoryId: "", description: "", estimatedDuration: "", spocId: "" }))
     }
   }, [formData.categoryId])
+
+  // Auto-select N/A when no subcategories are available
+  useEffect(() => {
+    if (formData.categoryId && subcategories.length === 0 && !formData.subcategoryId) {
+      setFormData((prev) => ({ ...prev, subcategoryId: "N/A" }))
+    }
+  }, [subcategories, formData.categoryId])
 
   const loadSubcategories = async (categoryId: number) => {
     console.log("[v0] Loading subcategories for category:", categoryId)
@@ -165,7 +172,7 @@ export default function CreateTicketForm() {
         ...prev,
         description: auto_title_template || prev.description,
         estimatedDuration: estimated_duration ? `${estimated_duration} minutes` : "",
-        assigneeId: spoc_user_id ? spoc_user_id.toString() : prev.assigneeId,
+        spocId: spoc_user_id ? spoc_user_id.toString() : prev.spocId,
       }))
     }
   }
@@ -261,9 +268,10 @@ export default function CreateTicketForm() {
       if (
         !formData.businessUnitGroupId ||
         !formData.categoryId ||
-        !formData.assigneeId
+        !formData.subcategoryId ||
+        !formData.spocId
       ) {
-        throw new Error("Please fill in all required fields (Group, Category, Assignee)")
+        throw new Error("Please fill in all required fields (Group, Category, Sub-Category, SPOC)")
       }
 
       // Generate title from category + subcategory
@@ -278,11 +286,11 @@ export default function CreateTicketForm() {
         businessUnitGroupId: Number(formData.businessUnitGroupId),
         projectName: formData.projectName,
         categoryId: Number(formData.categoryId),
-        subcategoryId: formData.subcategoryId ? Number(formData.subcategoryId) : null,
+        subcategoryId: formData.subcategoryId && formData.subcategoryId !== "N/A" ? Number(formData.subcategoryId) : null,
         title: generatedTitle,
         description: formData.description || "",
         estimatedDuration: formData.estimatedDuration,
-        assigneeId: Number(formData.assigneeId),
+        spocId: Number(formData.spocId),
         productReleaseName: formData.productReleaseName,
       })
 
@@ -425,26 +433,30 @@ export default function CreateTicketForm() {
 
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">
-            Sub-Category <span className="text-xs text-foreground-secondary font-normal">(Optional)</span>
+            Sub-Category *
           </label>
           <Combobox
-            options={subcategories.map((sub) => ({
-              value: sub.id.toString(),
-              label: sub.name,
-              subtitle: sub.description,
-            }))}
-            value={formData.subcategoryId}
+            options={
+              subcategories.length > 0
+                ? subcategories.map((sub) => ({
+                    value: sub.id.toString(),
+                    label: sub.name,
+                    subtitle: sub.description,
+                  }))
+                : [{ value: "N/A", label: "N/A", subtitle: "No subcategories available" }]
+            }
+            value={formData.subcategoryId || (subcategories.length === 0 && formData.categoryId ? "N/A" : "")}
             onChange={handleSubcategoryChange}
-            placeholder={formData.categoryId ? "Select a sub-category (optional)..." : "Select a category first"}
+            placeholder={formData.categoryId ? "Select a sub-category..." : "Select a category first"}
             searchPlaceholder="Search sub-categories..."
-            emptyText="No sub-categories available. You can proceed without selecting one."
+            emptyText="No sub-categories available"
             disabled={!formData.categoryId}
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">
-            Description <span className="text-xs text-blue-600 font-normal">(Auto-filled from classification - editable)</span>
+            Description
           </label>
           <textarea
             name="description"
@@ -458,7 +470,7 @@ export default function CreateTicketForm() {
 
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">
-            Estimated Duration <span className="text-xs text-blue-600 font-normal">(Auto-filled)</span>
+            Estimated Duration
           </label>
           <input
             type="text"
@@ -475,7 +487,7 @@ export default function CreateTicketForm() {
 
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">
-            Assign To * <span className="text-xs text-blue-600 font-normal">(Auto-filled with SPOC)</span>
+            SPOC *
           </label>
           <Combobox
             options={assignees.map((user) => ({
@@ -483,9 +495,9 @@ export default function CreateTicketForm() {
               label: user.full_name || user.name,
               subtitle: user.email,
             }))}
-            value={formData.assigneeId}
-            onChange={(value) => setFormData((prev) => ({ ...prev, assigneeId: value }))}
-            placeholder="Select team member..."
+            value={formData.spocId}
+            onChange={(value) => setFormData((prev) => ({ ...prev, spocId: value }))}
+            placeholder="Select SPOC..."
             searchPlaceholder="Search team members..."
             emptyText="No team members found"
           />

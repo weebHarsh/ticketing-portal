@@ -20,7 +20,8 @@
       "Bash(npx vercel login)",
       "Bash(sudo chown:*)",
       "Bash(npm run build:*)",
-      "Bash(npx vercel:*)"
+      "Bash(npx vercel:*)",
+      "Bash(git add:*)"
     ]
   }
 }

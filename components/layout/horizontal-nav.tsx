@@ -71,8 +71,8 @@ export default function HorizontalNav() {
     <header className="bg-white border-b border-border shadow-sm sticky top-0 z-50">
       <div className="px-4 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
+          {/* Logo and Nav Items - Left Aligned */}
+          <div className="flex items-center gap-6">
             <Link href="/dashboard" className="flex items-center gap-3">
               <Image
                 src="/company-logo.svg"
@@ -83,14 +83,13 @@ export default function HorizontalNav() {
               />
               <div className="hidden sm:block">
                 <h1 className="font-poppins font-bold text-foreground text-base leading-tight">
-                  Ticketing Portal
+                  Ticket Portal
                 </h1>
               </div>
             </Link>
-          </div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-1">
+            {/* Desktop Navigation - Now left-aligned next to logo */}
+            <nav className="hidden lg:flex items-center gap-1">
             {navItems.map(({ href, label, icon: Icon }) => {
               const isActive = pathname === href || pathname.startsWith(`${href}/`)
               return (
@@ -108,7 +107,8 @@ export default function HorizontalNav() {
                 </Link>
               )
             })}
-          </nav>
+            </nav>
+          </div>
 
           {/* Right Section - User Info */}
           <div className="flex items-center gap-3">

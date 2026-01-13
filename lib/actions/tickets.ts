@@ -173,7 +173,7 @@ export async function createTicket(data: {
   title: string
   description: string
   estimatedDuration: string
-  assigneeId: number
+  spocId: number
   productReleaseName: string
 }) {
   try {
@@ -191,7 +191,7 @@ export async function createTicket(data: {
     const result = await sql`
       INSERT INTO tickets (
         ticket_id, title, description, ticket_type, priority,
-        status, created_by, assigned_to,
+        status, created_by, assigned_to, spoc_user_id,
         business_unit_group_id, project_name, category_id, subcategory_id,
         estimated_duration, product_release_name
       )
@@ -203,7 +203,8 @@ export async function createTicket(data: {
         ${"medium"},
         ${"open"},
         ${currentUser.id},
-        ${data.assigneeId},
+        ${null},
+        ${data.spocId},
         ${data.businessUnitGroupId},
         ${data.projectName || null},
         ${data.categoryId},

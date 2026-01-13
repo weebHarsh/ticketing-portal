@@ -22,6 +22,7 @@ interface Ticket {
   ticket_type: "support" | "requirement"
   status: "open" | "closed" | "hold"
   created_at: string
+  creator_name: string | null
   assignee_name: string | null
   assigned_to: number | null
   spoc_name: string | null
@@ -183,6 +184,9 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                 #
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+                Initiator
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
                 Date/Time
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
@@ -218,6 +222,18 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
               >
                 {/* Row Number */}
                 <td className="px-4 py-3 text-sm text-foreground-secondary">{index + 1}</td>
+
+                {/* Initiator Name and Group Stacked */}
+                <td className="px-4 py-3">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">
+                      {ticket.creator_name || "Unknown"}
+                    </span>
+                    <span className="text-xs text-foreground-secondary">
+                      {ticket.group_name || "No Group"}
+                    </span>
+                  </div>
+                </td>
 
                 {/* Date/Time Stacked */}
                 <td className="px-4 py-3">
@@ -313,14 +329,23 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                 {/* Attachments */}
                 <td className="px-4 py-3 text-center">
                   {ticket.attachment_count > 0 ? (
-                    <button
-                      className="inline-flex items-center gap-1 text-primary hover:text-primary/80"
-                      onClick={() => router.push(`/tickets/${ticket.id}`)}
-                      title={`${ticket.attachment_count} attachment(s)`}
-                    >
-                      <Paperclip className="w-4 h-4" />
-                      <span className="text-xs font-medium">{ticket.attachment_count}</span>
-                    </button>
+                    <div className="inline-flex items-center gap-1">
+                      <button
+                        className="inline-flex items-center gap-1 text-primary hover:text-primary/80"
+                        onClick={() => router.push(`/tickets/${ticket.id}`)}
+                        title={`View ${ticket.attachment_count} attachment(s)`}
+                      >
+                        <Paperclip className="w-4 h-4" />
+                        <span className="text-xs font-medium">{ticket.attachment_count}</span>
+                      </button>
+                      <button
+                        className="p-1 text-primary hover:text-primary/80"
+                        onClick={() => router.push(`/tickets/${ticket.id}#attachments`)}
+                        title="View attachments"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   ) : (
                     <span className="text-foreground-secondary">-</span>
                   )}

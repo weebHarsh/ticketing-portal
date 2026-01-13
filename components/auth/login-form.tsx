@@ -50,7 +50,7 @@ export function LoginForm() {
       // Set cookie so middleware can verify authentication
       document.cookie = `user=${JSON.stringify(data.user)}; path=/; max-age=86400`
 
-      router.push("/dashboard")
+      router.push("/tickets/create")
       router.refresh()
     } catch (err) {
       setError("Login failed. Please try again.")
@@ -71,7 +71,7 @@ export function LoginForm() {
             height={48}
             className="w-12 h-12 mx-auto mb-4"
           />
-          <h1 className="text-2xl font-sans font-bold text-foreground mb-2">Ticketing Portal</h1>
+          <h1 className="text-2xl font-sans font-bold text-foreground mb-2">Ticket Portal</h1>
           <p className="text-muted-foreground text-sm">Sharpen Focus - Customer Success</p>
         </div>
 
