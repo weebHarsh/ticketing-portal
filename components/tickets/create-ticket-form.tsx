@@ -304,6 +304,7 @@ export default function CreateTicketForm() {
       if (formData.attachments.length > 0) {
         const ticketId = result.data.id
         const userId = JSON.parse(localStorage.getItem("user") || "{}").id
+        const failedUploads: string[] = []
 
         for (const file of formData.attachments) {
           const uploadFormData = new FormData()
@@ -318,7 +319,13 @@ export default function CreateTicketForm() {
 
           if (!uploadResponse.ok) {
             console.error("Failed to upload attachment:", file.name)
+            failedUploads.push(file.name)
           }
+        }
+
+        // Show warning if any uploads failed
+        if (failedUploads.length > 0) {
+          alert(`Ticket created but ${failedUploads.length} attachment(s) failed to upload: ${failedUploads.join(", ")}.\n\nNote: File uploads don't work on Vercel's free tier. Please use the Edit page to add attachments after deployment to a server with file storage.`)
         }
       }
 

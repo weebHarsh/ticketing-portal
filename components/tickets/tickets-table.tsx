@@ -198,7 +198,7 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
               <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
                 SPOC
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider w-[160px]">
                 Assignee
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
@@ -281,10 +281,10 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                 </td>
 
                 {/* Assignee with inline edit */}
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 w-[160px]">
                   {editingAssignee === ticket.id ? (
                     <select
-                      className="text-sm border border-border rounded px-2 py-1 w-full max-w-[140px]"
+                      className="text-sm border border-border rounded px-2 py-1 w-[140px] bg-white"
                       value={ticket.assigned_to || ""}
                       onChange={(e) =>
                         handleAssigneeChange(ticket.id, parseInt(e.target.value))
@@ -301,7 +301,7 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                     </select>
                   ) : (
                     <span
-                      className={`text-sm ${
+                      className={`text-sm inline-block w-[140px] ${
                         canEditAssignee(ticket)
                           ? "cursor-pointer hover:text-primary hover:underline"
                           : ""
