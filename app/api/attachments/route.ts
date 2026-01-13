@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { writeFile, mkdir } from "fs/promises"
-import path from "path"
+import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3"
+import { r2Client, R2_BUCKET_NAME, R2_PUBLIC_URL } from "@/lib/r2"
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 
@@ -28,23 +28,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), "public", "uploads")
-    await mkdir(uploadsDir, { recursive: true })
-
     // Generate unique filename
     const timestamp = Date.now()
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_")
-    const fileName = `${timestamp}-${sanitizedName}`
-    const filePath = path.join(uploadsDir, fileName)
+    const fileName = `tickets/${ticketId}/${timestamp}-${sanitizedName}`
 
-    // Save file
+    // Upload to R2
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    await writeFile(filePath, buffer)
+
+    await r2Client.send(
+      new PutObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: fileName,
+        Body: buffer,
+        ContentType: file.type,
+        ContentLength: file.size,
+      })
+    )
+
+    // Generate public URL
+    const fileUrl = `${R2_PUBLIC_URL}/${fileName}`
 
     // Save to database
-    const fileUrl = `/uploads/${fileName}`
     const result = await sql`
       INSERT INTO attachments (ticket_id, file_name, file_url, file_size, uploaded_by)
       VALUES (${Number(ticketId)}, ${file.name}, ${fileUrl}, ${file.size}, ${uploadedBy ? Number(uploadedBy) : null})
@@ -88,6 +94,23 @@ export async function DELETE(request: NextRequest) {
     }
 
     const ticketId = attachment[0].ticket_id
+    const fileUrl = attachment[0].file_url
+
+    // Extract filename from URL
+    const fileName = fileUrl.replace(`${R2_PUBLIC_URL}/`, "")
+
+    // Delete from R2
+    try {
+      await r2Client.send(
+        new DeleteObjectCommand({
+          Bucket: R2_BUCKET_NAME,
+          Key: fileName,
+        })
+      )
+    } catch (r2Error) {
+      console.error("Error deleting from R2:", r2Error)
+      // Continue even if R2 delete fails
+    }
 
     // Delete from database
     await sql`DELETE FROM attachments WHERE id = ${Number(attachmentId)}`
