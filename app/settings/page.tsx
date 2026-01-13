@@ -18,6 +18,7 @@ export default function SettingsPage() {
   const [teamFormData, setTeamFormData] = useState({ name: "", description: "" })
   const [saving, setSaving] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<number | null>(null)
+  const [currentUser, setCurrentUser] = useState<any>(null)
 
   useEffect(() => {
     try {
@@ -25,6 +26,7 @@ export default function SettingsPage() {
       if (userData) {
         const user = JSON.parse(userData)
         setCurrentUserId(user.id)
+        setCurrentUser(user)
       }
     } catch (e) {
       console.error("Failed to parse user data:", e)
@@ -293,42 +295,48 @@ export default function SettingsPage() {
         {/* Existing code */}
         <div className="bg-white border border-border rounded-xl p-6 space-y-6 shadow-sm">
           <div>
-            <h3 className="font-sans font-semibold text-foreground mb-4">Account Settings</h3>
+            <h3 className="font-sans font-semibold text-foreground mb-4">Account Information</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">Display Name</label>
                 <input
                   type="text"
-                  placeholder="Your name"
-                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+                  value={currentUser?.full_name || ""}
+                  readOnly
+                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-surface text-foreground cursor-not-allowed text-sm"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">Email Address</label>
                 <input
                   type="email"
-                  placeholder="your@email.com"
-                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+                  value={currentUser?.email || ""}
+                  readOnly
+                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-surface text-foreground cursor-not-allowed text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Business Unit / Group</label>
+                <input
+                  type="text"
+                  value={currentUser?.group_name || "N/A"}
+                  readOnly
+                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-surface text-foreground cursor-not-allowed text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Role</label>
+                <input
+                  type="text"
+                  value={currentUser?.role || "User"}
+                  readOnly
+                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-surface text-foreground cursor-not-allowed text-sm"
                 />
               </div>
             </div>
-          </div>
-
-          <div className="border-t border-border pt-6">
-            <h3 className="font-sans font-semibold text-foreground mb-4">Preferences</h3>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" className="w-4 h-4" defaultChecked />
-              <span className="text-foreground text-sm">Email notifications for ticket updates</span>
-            </label>
-          </div>
-
-          <div className="border-t border-border pt-6 flex gap-3 justify-end">
-            <button className="px-6 py-2 border border-border rounded-lg text-foreground hover:bg-muted transition-colors">
-              Cancel
-            </button>
-            <button className="px-6 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg transition-all">
-              Save Changes
-            </button>
+            <p className="text-xs text-muted-foreground mt-4">
+              Contact your administrator to update your account information.
+            </p>
           </div>
         </div>
       </div>
