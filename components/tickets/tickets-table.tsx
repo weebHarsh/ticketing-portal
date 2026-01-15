@@ -86,7 +86,7 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
       let ticketsData = result.data
 
       // Filter tickets for SPOC users - show only tickets assigned to them as SPOC
-      if (currentUser && currentUser.role !== "admin" && currentUser.role !== "Admin") {
+      if (currentUser && currentUser.role?.toLowerCase() !== "admin") {
         ticketsData = ticketsData.filter((ticket: Ticket) =>
           ticket.spoc_user_id === currentUser.id ||
           ticket.created_by === currentUser.id ||
@@ -157,8 +157,7 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
     if (!currentUser) return false
     return (
       currentUser.id === ticket.spoc_user_id ||
-      currentUser.role === "admin" ||
-      currentUser.role === "Admin"
+      currentUser.role?.toLowerCase() === "admin"
     )
   }
 

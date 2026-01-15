@@ -16,9 +16,72 @@ export async function getTickets(filters?: {
   userId?: number
 }) {
   try {
-    const values: any[] = []
+    // Build WHERE conditions dynamically
+    const conditions = ["1=1"]
 
-    let query = `
+    // Exclude soft-deleted tickets by default
+    if (!filters?.includeDeleted) {
+      conditions.push("(t.is_deleted IS NULL OR t.is_deleted = FALSE)")
+    }
+
+    // Status filter
+    if (filters?.status && filters.status !== "all") {
+      conditions.push(`t.status = '${filters.status}'`)
+    }
+
+    // Type filter
+    if (filters?.type && filters.type !== "all") {
+      conditions.push(`t.ticket_type = '${filters.type}'`)
+    }
+
+    // Assignee filter
+    if (filters?.assignee) {
+      conditions.push(`t.assigned_to = ${parseInt(filters.assignee)}`)
+    }
+
+    // Universal search across multiple fields
+    if (filters?.search) {
+      const searchValue = filters.search.replace(/'/g, "''") // Escape single quotes
+      conditions.push(`(
+        t.title ILIKE '%${searchValue}%' OR
+        t.ticket_id ILIKE '%${searchValue}%' OR
+        t.description ILIKE '%${searchValue}%' OR
+        u.full_name ILIKE '%${searchValue}%' OR
+        a.full_name ILIKE '%${searchValue}%' OR
+        c.name ILIKE '%${searchValue}%'
+      )`)
+    }
+
+    // Date from filter
+    if (filters?.dateFrom) {
+      conditions.push(`t.created_at >= '${filters.dateFrom}'`)
+    }
+
+    // Date to filter
+    if (filters?.dateTo) {
+      conditions.push(`t.created_at <= '${filters.dateTo}'`)
+    }
+
+    // My Team filter - show tickets where team members are creator OR assignee
+    if (filters?.myTeam && filters?.userId) {
+      conditions.push(`(
+        t.created_by IN (
+          SELECT tm2.user_id FROM team_members tm1
+          JOIN team_members tm2 ON tm1.team_id = tm2.team_id
+          WHERE tm1.user_id = ${filters.userId}
+        )
+        OR t.assigned_to IN (
+          SELECT tm2.user_id FROM team_members tm1
+          JOIN team_members tm2 ON tm1.team_id = tm2.team_id
+          WHERE tm1.user_id = ${filters.userId}
+        )
+      )`)
+    }
+
+    const whereClause = conditions.join(" AND ")
+
+    // Use Neon's template literal syntax
+    const tickets = await sql`
       SELECT
         t.*,
         u.full_name as creator_name,
@@ -35,74 +98,11 @@ export async function getTickets(filters?: {
       LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN subcategories sc ON t.subcategory_id = sc.id
       LEFT JOIN business_unit_groups bug ON t.business_unit_group_id = bug.id
-      WHERE 1=1
+      WHERE ${sql.raw(whereClause)}
+      ORDER BY t.created_at DESC
     `
 
-    // Exclude soft-deleted tickets by default
-    if (!filters?.includeDeleted) {
-      query += ` AND (t.is_deleted IS NULL OR t.is_deleted = FALSE)`
-    }
-
-    if (filters?.status && filters.status !== "all") {
-      values.push(filters.status)
-      query += ` AND t.status = $${values.length}`
-    }
-
-    if (filters?.type && filters.type !== "all") {
-      values.push(filters.type)
-      query += ` AND t.ticket_type = $${values.length}`
-    }
-
-    if (filters?.assignee) {
-      values.push(filters.assignee)
-      query += ` AND t.assigned_to = $${values.length}`
-    }
-
-    // Universal search across multiple fields
-    if (filters?.search) {
-      const searchValue = `%${filters.search}%`
-      values.push(searchValue, searchValue, searchValue, searchValue, searchValue, searchValue)
-      query += ` AND (
-        t.title ILIKE $${values.length - 5} OR
-        t.ticket_id ILIKE $${values.length - 4} OR
-        t.description ILIKE $${values.length - 3} OR
-        u.full_name ILIKE $${values.length - 2} OR
-        a.full_name ILIKE $${values.length - 1} OR
-        c.name ILIKE $${values.length}
-      )`
-    }
-
-    if (filters?.dateFrom) {
-      values.push(filters.dateFrom)
-      query += ` AND t.created_at >= $${values.length}`
-    }
-
-    if (filters?.dateTo) {
-      values.push(filters.dateTo)
-      query += ` AND t.created_at <= $${values.length}`
-    }
-
-    // My Team filter - show tickets where team members are creator OR assignee
-    if (filters?.myTeam && filters?.userId) {
-      values.push(filters.userId)
-      query += ` AND (
-        t.created_by IN (
-          SELECT tm2.user_id FROM team_members tm1
-          JOIN team_members tm2 ON tm1.team_id = tm2.team_id
-          WHERE tm1.user_id = $${values.length}
-        )
-        OR t.assigned_to IN (
-          SELECT tm2.user_id FROM team_members tm1
-          JOIN team_members tm2 ON tm1.team_id = tm2.team_id
-          WHERE tm1.user_id = $${values.length}
-        )
-      )`
-    }
-
-    query += ` ORDER BY t.created_at DESC`
-
-    const tickets = await sql.query(query, values)
-    return { success: true, data: tickets.rows || tickets }
+    return { success: true, data: tickets }
   } catch (error) {
     console.error("[v0] Error fetching tickets:", error)
     return { success: false, error: "Failed to fetch tickets" }

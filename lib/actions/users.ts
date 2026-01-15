@@ -9,9 +9,27 @@ export async function getAllUsers(filters?: {
   includeInactive?: boolean
 }) {
   try {
-    const values: any[] = []
+    // Build WHERE conditions dynamically
+    const conditions = ["1=1"]
 
-    let query = `
+    // Exclude inactive users by default
+    if (!filters?.includeInactive) {
+      conditions.push("(u.is_active IS NULL OR u.is_active = TRUE)")
+    }
+
+    if (filters?.role && filters.role !== "all") {
+      conditions.push(`u.role = '${filters.role}'`)
+    }
+
+    if (filters?.search) {
+      const searchValue = filters.search.replace(/'/g, "''") // Escape single quotes
+      conditions.push(`(u.full_name ILIKE '%${searchValue}%' OR u.email ILIKE '%${searchValue}%')`)
+    }
+
+    const whereClause = conditions.join(" AND ")
+
+    // Use Neon's template literal syntax
+    const users = await sql`
       SELECT
         u.id,
         u.email,
@@ -26,31 +44,11 @@ export async function getAllUsers(filters?: {
       FROM users u
       LEFT JOIN tickets t ON u.id = t.assigned_to
       LEFT JOIN team_members tm ON u.id = tm.user_id
-      WHERE 1=1
-    `
-
-    // Exclude inactive users by default
-    if (!filters?.includeInactive) {
-      query += ` AND (u.is_active IS NULL OR u.is_active = TRUE)`
-    }
-
-    if (filters?.role && filters.role !== "all") {
-      values.push(filters.role)
-      query += ` AND u.role = $${values.length}`
-    }
-
-    if (filters?.search) {
-      const searchValue = `%${filters.search}%`
-      values.push(searchValue, searchValue)
-      query += ` AND (u.full_name ILIKE $${values.length - 1} OR u.email ILIKE $${values.length})`
-    }
-
-    query += `
+      WHERE ${sql.raw(whereClause)}
       GROUP BY u.id, u.email, u.full_name, u.role, u.avatar_url, u.created_at, u.updated_at, u.is_active
       ORDER BY u.created_at DESC
     `
 
-    const users = await sql.query(query, values)
     return { success: true, data: users }
   } catch (error) {
     console.error("Error fetching users:", error)
@@ -124,26 +122,21 @@ export async function updateUser(
 ) {
   try {
     const updates: string[] = []
-    const values: any[] = []
 
     if (data.fullName !== undefined) {
-      values.push(data.fullName)
-      updates.push(`full_name = $${values.length}`)
+      updates.push(`full_name = '${data.fullName.replace(/'/g, "''")}'`)
     }
 
     if (data.email !== undefined) {
-      values.push(data.email)
-      updates.push(`email = $${values.length}`)
+      updates.push(`email = '${data.email.replace(/'/g, "''")}'`)
     }
 
     if (data.role !== undefined) {
-      values.push(data.role)
-      updates.push(`role = $${values.length}`)
+      updates.push(`role = '${data.role}'`)
     }
 
     if (data.avatarUrl !== undefined) {
-      values.push(data.avatarUrl || null)
-      updates.push(`avatar_url = $${values.length}`)
+      updates.push(`avatar_url = ${data.avatarUrl ? `'${data.avatarUrl.replace(/'/g, "''")}'` : "NULL"}`)
     }
 
     if (updates.length === 0) {
@@ -151,16 +144,16 @@ export async function updateUser(
     }
 
     updates.push(`updated_at = CURRENT_TIMESTAMP`)
-    values.push(id)
 
-    const query = `
+    const updateQuery = updates.join(", ")
+
+    // Use Neon's template literal syntax with sql.raw for dynamic SET clause
+    const result = await sql`
       UPDATE users
-      SET ${updates.join(", ")}
-      WHERE id = $${values.length}
+      SET ${sql.raw(updateQuery)}
+      WHERE id = ${id}
       RETURNING id, email, full_name, role, avatar_url, created_at, updated_at
     `
-
-    const result = await sql.query(query, values)
 
     if (!result || result.length === 0) {
       return { success: false, error: "Failed to update user" }
@@ -304,5 +297,90 @@ export async function getUserRoles() {
       { value: "designer", label: "Designer" },
       { value: "analyst", label: "Analyst" },
     ],
+  }
+}
+
+// Settings page functions
+export async function updateUserBusinessGroup(userId: number, businessGroupId: number) {
+  try {
+    const result = await sql`
+      UPDATE users
+      SET business_unit_group_id = ${businessGroupId}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${userId}
+      RETURNING id, email, full_name, role, business_unit_group_id
+    `
+
+    if (result.length === 0) {
+      return { success: false, error: "User not found" }
+    }
+
+    return { success: true, data: result[0] }
+  } catch (error) {
+    console.error("Error updating user business group:", error)
+    return { success: false, error: "Failed to update business group" }
+  }
+}
+
+export async function updateUserProfile(
+  userId: number,
+  data: { fullName: string; businessGroupId: number }
+) {
+  try {
+    const result = await sql`
+      UPDATE users
+      SET
+        full_name = ${data.fullName},
+        business_unit_group_id = ${data.businessGroupId},
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${userId}
+      RETURNING id, email, full_name, role, business_unit_group_id
+    `
+
+    if (result.length === 0) {
+      return { success: false, error: "User not found" }
+    }
+
+    return { success: true, data: result[0] }
+  } catch (error) {
+    console.error("Error updating user profile:", error)
+    return { success: false, error: "Failed to update profile" }
+  }
+}
+
+export async function changeUserPassword(
+  userId: number,
+  currentPassword: string,
+  newPassword: string
+) {
+  try {
+    // Get current password hash
+    const userResult = await sql`
+      SELECT password_hash FROM users WHERE id = ${userId}
+    `
+
+    if (userResult.length === 0) {
+      return { success: false, error: "User not found" }
+    }
+
+    // Verify current password
+    const isValid = await bcrypt.compare(currentPassword, userResult[0].password_hash)
+    if (!isValid) {
+      return { success: false, error: "Current password is incorrect" }
+    }
+
+    // Hash new password
+    const newPasswordHash = await bcrypt.hash(newPassword, 10)
+
+    // Update password
+    await sql`
+      UPDATE users
+      SET password_hash = ${newPasswordHash}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${userId}
+    `
+
+    return { success: true }
+  } catch (error) {
+    console.error("Error changing password:", error)
+    return { success: false, error: "Failed to change password" }
   }
 }

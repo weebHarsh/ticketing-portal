@@ -7,6 +7,11 @@ import DashboardLayout from "@/components/layout/dashboard-layout"
 import { Settings, Plus, Trash2, Users, Eye, EyeOff, Check, UserPlus } from "lucide-react"
 import { getBusinessUnitGroups } from "@/lib/actions/master-data"
 import { getUsers } from "@/lib/actions/tickets"
+import {
+  updateUserBusinessGroup,
+  updateUserProfile,
+  changeUserPassword,
+} from "@/lib/actions/users"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -75,24 +80,30 @@ export default function SettingsPage() {
   }
 
   const handleSaveBusinessGroup = async () => {
+    if (!currentUser?.id || !selectedBusinessGroup) {
+      alert("Please select a business group")
+      return
+    }
+
     setSaving(true)
     try {
-      // TODO: Implement API call to update business group
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const result = await updateUserBusinessGroup(currentUser.id, Number(selectedBusinessGroup))
 
-      // Update localStorage
-      if (currentUser) {
+      if (result.success) {
+        // Update localStorage with new data
         const updatedUser = {
           ...currentUser,
-          business_unit_group_id: selectedBusinessGroup,
+          business_unit_group_id: Number(selectedBusinessGroup),
           group_name: businessGroups.find(bg => bg.id === Number(selectedBusinessGroup))?.name
         }
         localStorage.setItem("user", JSON.stringify(updatedUser))
         setCurrentUser(updatedUser)
+        alert("Business group updated successfully!")
+      } else {
+        alert(result.error || "Failed to update business group")
       }
-
-      alert("Business group updated successfully!")
     } catch (error) {
+      console.error("Error updating business group:", error)
       alert("Failed to update business group")
     } finally {
       setSaving(false)
@@ -101,25 +112,35 @@ export default function SettingsPage() {
 
   const handleSaveAccountInfo = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!currentUser?.id || !fullName || !selectedBusinessGroup) {
+      alert("Please fill in all required fields")
+      return
+    }
+
     setSaving(true)
     try {
-      // TODO: Implement API call to update account info
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const result = await updateUserProfile(currentUser.id, {
+        fullName,
+        businessGroupId: Number(selectedBusinessGroup)
+      })
 
-      // Update localStorage
-      if (currentUser) {
+      if (result.success) {
+        // Update localStorage with new data
         const updatedUser = {
           ...currentUser,
           full_name: fullName,
-          business_unit_group_id: selectedBusinessGroup,
+          business_unit_group_id: Number(selectedBusinessGroup),
           group_name: businessGroups.find(bg => bg.id === Number(selectedBusinessGroup))?.name
         }
         localStorage.setItem("user", JSON.stringify(updatedUser))
         setCurrentUser(updatedUser)
+        alert("Account information updated successfully!")
+      } else {
+        alert(result.error || "Failed to update account information")
       }
-
-      alert("Account information updated successfully!")
     } catch (error) {
+      console.error("Error updating account info:", error)
       alert("Failed to update account information")
     } finally {
       setSaving(false)
@@ -128,6 +149,11 @@ export default function SettingsPage() {
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!currentUser?.id) {
+      alert("User not authenticated")
+      return
+    }
 
     if (newPassword !== confirmPassword) {
       alert("New passwords do not match!")
@@ -141,15 +167,19 @@ export default function SettingsPage() {
 
     setSaving(true)
     try {
-      // TODO: Implement API call to change password
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const result = await changeUserPassword(currentUser.id, currentPassword, newPassword)
 
-      alert("Password changed successfully!")
-      setCurrentPassword("")
-      setNewPassword("")
-      setConfirmPassword("")
-      setShowPasswordSection(false)
+      if (result.success) {
+        alert("Password changed successfully!")
+        setCurrentPassword("")
+        setNewPassword("")
+        setConfirmPassword("")
+        setShowPasswordSection(false)
+      } else {
+        alert(result.error || "Failed to change password")
+      }
     } catch (error) {
+      console.error("Error changing password:", error)
       alert("Failed to change password")
     } finally {
       setSaving(false)

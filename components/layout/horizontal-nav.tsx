@@ -51,7 +51,7 @@ export default function HorizontalNav() {
   ]
 
   const filteredNavItems = navItems.filter((item) => {
-    if (item.adminOnly && user?.role !== "admin") {
+    if (item.adminOnly && user?.role?.toLowerCase() !== "admin") {
       return false
     }
     return true
