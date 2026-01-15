@@ -159,7 +159,6 @@ export default function TicketsFilter({ onFilterChange }: TicketsFilterProps) {
               >
                 <option value="all">All Status</option>
                 <option value="open">Open</option>
-                <option value="in-progress">In Progress</option>
                 <option value="closed">Closed</option>
                 <option value="hold">On Hold</option>
               </select>

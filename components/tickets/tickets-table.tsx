@@ -61,6 +61,7 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [editingAssignee, setEditingAssignee] = useState<number | null>(null)
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [assigneeSearchTerm, setAssigneeSearchTerm] = useState("")
 
   useEffect(() => {
     try {
@@ -76,13 +77,24 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
   useEffect(() => {
     loadTickets()
     loadUsers()
-  }, [filters])
+  }, [filters, currentUser])
 
   const loadTickets = async () => {
     setIsLoading(true)
     const result = await getTickets(filters)
     if (result.success) {
-      setTickets(result.data)
+      let ticketsData = result.data
+
+      // Filter tickets for SPOC users - show only tickets assigned to them as SPOC
+      if (currentUser && currentUser.role !== "admin" && currentUser.role !== "Admin") {
+        ticketsData = ticketsData.filter((ticket: Ticket) =>
+          ticket.spoc_user_id === currentUser.id ||
+          ticket.created_by === currentUser.id ||
+          ticket.assigned_to === currentUser.id
+        )
+      }
+
+      setTickets(ticketsData)
     }
     setIsLoading(false)
   }
@@ -154,7 +166,6 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
     open: "bg-blue-100 text-blue-700",
     closed: "bg-green-100 text-green-700",
     hold: "bg-yellow-100 text-yellow-700",
-    "in-progress": "bg-purple-100 text-purple-700",
   }
 
   const handleExport = () => {
@@ -263,7 +274,7 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
               <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider max-w-xs">
                 Description
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider w-[160px]">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider w-[200px]">
                 Assignee
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
@@ -322,7 +333,7 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                 {/* Ticket ID */}
                 <td className="px-4 py-3">
                   <span className="text-sm font-medium text-primary">
-                    {ticket.ticket_id}
+                    {ticket.id}
                   </span>
                 </td>
 
@@ -355,24 +366,45 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                 </td>
 
                 {/* Assignee and SPOC Combined (2-line) */}
-                <td className="px-4 py-3 w-[160px]">
+                <td className="px-4 py-3 w-[200px]">
                   {editingAssignee === ticket.id ? (
-                    <select
-                      className="text-sm border border-border rounded px-2 py-1 w-[140px] bg-white"
-                      value={ticket.assigned_to || ""}
-                      onChange={(e) =>
-                        handleAssigneeChange(ticket.id, parseInt(e.target.value))
-                      }
-                      onBlur={() => setEditingAssignee(null)}
-                      autoFocus
-                    >
-                      <option value="">Unassigned</option>
-                      {users.map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.full_name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search employee..."
+                        value={assigneeSearchTerm}
+                        onChange={(e) => setAssigneeSearchTerm(e.target.value)}
+                        className="text-sm border border-border rounded px-2 py-1 w-full bg-white mb-1"
+                        autoFocus
+                      />
+                      <select
+                        className="text-sm border border-border rounded px-2 py-1 w-full bg-white max-h-32 overflow-y-auto"
+                        value={ticket.assigned_to || ""}
+                        onChange={(e) => {
+                          handleAssigneeChange(ticket.id, parseInt(e.target.value))
+                          setAssigneeSearchTerm("")
+                        }}
+                        onBlur={() => {
+                          setTimeout(() => {
+                            setEditingAssignee(null)
+                            setAssigneeSearchTerm("")
+                          }, 200)
+                        }}
+                        size={5}
+                      >
+                        <option value="">Unassigned</option>
+                        {users
+                          .filter((user) =>
+                            user.full_name.toLowerCase().includes(assigneeSearchTerm.toLowerCase()) ||
+                            user.email.toLowerCase().includes(assigneeSearchTerm.toLowerCase())
+                          )
+                          .map((user) => (
+                            <option key={user.id} value={user.id}>
+                              {user.full_name} ({user.email})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
                   ) : (
                     <div className="flex flex-col">
                       <span
