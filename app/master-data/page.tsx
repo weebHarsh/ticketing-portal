@@ -2,7 +2,7 @@
 
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import { Database } from "lucide-react"
-import UnifiedMasterData from "@/components/master-data/unified-master-data"
+import UnifiedMasterDataV2 from "@/components/master-data/unified-master-data-v2"
 
 export default function MasterDataPage() {
   return (
@@ -14,11 +14,11 @@ export default function MasterDataPage() {
             Master Data Management
           </h1>
           <p className="text-foreground-secondary mt-2">
-            Manage all business units, categories, subcategories, and ticket classification mappings in one unified view
+            Manage business groups, categories, subcategories, and ticket classification mappings
           </p>
         </div>
 
-        <UnifiedMasterData />
+        <UnifiedMasterDataV2 />
       </div>
     </DashboardLayout>
   )

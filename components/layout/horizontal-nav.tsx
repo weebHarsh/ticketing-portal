@@ -46,9 +46,16 @@ export default function HorizontalNav() {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: Home },
     { href: "/tickets", label: "Tickets", icon: TicketIcon },
-    { href: "/analytics", label: "Reports", icon: BarChart3 },
-    { href: "/master-data", label: "Master Settings", icon: Database },
+    { href: "/analytics", label: "Reports", icon: BarChart3, adminOnly: true },
+    { href: "/master-data", label: "Master Settings", icon: Database, adminOnly: true },
   ]
+
+  const filteredNavItems = navItems.filter((item) => {
+    if (item.adminOnly && user?.role !== "admin") {
+      return false
+    }
+    return true
+  })
 
   const handleLogout = () => {
     localStorage.removeItem("user")
@@ -90,7 +97,7 @@ export default function HorizontalNav() {
 
             {/* Desktop Navigation - Now left-aligned next to logo */}
             <nav className="hidden lg:flex items-center gap-1">
-            {navItems.map(({ href, label, icon: Icon }) => {
+            {filteredNavItems.map(({ href, label, icon: Icon }) => {
               const isActive = pathname === href || pathname.startsWith(`${href}/`)
               return (
                 <Link
@@ -189,7 +196,7 @@ export default function HorizontalNav() {
         {mobileMenuOpen && (
           <nav className="lg:hidden py-4 border-t border-border">
             <div className="flex flex-col gap-1">
-              {navItems.map(({ href, label, icon: Icon }) => {
+              {filteredNavItems.map(({ href, label, icon: Icon }) => {
                 const isActive = pathname === href || pathname.startsWith(`${href}/`)
                 return (
                   <Link
