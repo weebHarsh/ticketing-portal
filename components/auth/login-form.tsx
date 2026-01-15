@@ -50,7 +50,7 @@ export function LoginForm() {
       // Set cookie so middleware can verify authentication
       document.cookie = `user=${JSON.stringify(data.user)}; path=/; max-age=86400`
 
-      router.push("/tickets/create")
+      router.push("/dashboard")
       router.refresh()
     } catch (err) {
       setError("Login failed. Please try again.")
