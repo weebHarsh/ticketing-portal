@@ -67,12 +67,11 @@ export function LoginForm() {
           <Image
             src="/company-logo.svg"
             alt="Company Logo"
-            width={48}
-            height={48}
-            className="w-12 h-12 mx-auto mb-4"
+            width={60}
+            height={60}
+            className="w-15 h-15 mx-auto mb-4"
           />
-          <h1 className="text-2xl font-sans font-bold text-foreground mb-2">Ticket Portal</h1>
-          <p className="text-muted-foreground text-sm">Sharpen Focus - Customer Success</p>
+          <h1 className="text-3xl font-poppins font-bold text-foreground">Ticket Portal</h1>
         </div>
 
         {/* Error Alert */}
@@ -147,7 +146,7 @@ export function LoginForm() {
       </div>
 
       {/* Footer */}
-      <p className="text-center text-white text-xs mt-6 opacity-75">Internal Portal • Sharpen Focus</p>
+      <p className="text-center text-white text-xs mt-6 opacity-75">Internal Portal</p>
     </div>
   )
 }

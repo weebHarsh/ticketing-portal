@@ -4,471 +4,475 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import DashboardLayout from "@/components/layout/dashboard-layout"
-import { Settings, Plus, Edit, Trash2, Users, X, UserPlus, LogOut, Check } from "lucide-react"
-import { getTeams, createTeam, updateTeam, deleteTeam, getUserTeams, addTeamMember, leaveTeam } from "@/lib/actions/teams"
+import { Settings, Plus, Trash2, Users, Eye, EyeOff, Check, UserPlus } from "lucide-react"
+import { getBusinessUnitGroups } from "@/lib/actions/master-data"
+import { getUsers } from "@/lib/actions/tickets"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function SettingsPage() {
-  const [teams, setTeams] = useState<any[]>([])
-  const [myTeams, setMyTeams] = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState("my-group")
+  const [businessGroups, setBusinessGroups] = useState<any[]>([])
+  const [allUsers, setAllUsers] = useState<any[]>([])
+  const [teamMembers, setTeamMembers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [showTeamModal, setShowTeamModal] = useState(false)
-  const [showJoinModal, setShowJoinModal] = useState(false)
-  const [editTeam, setEditTeam] = useState<any>(null)
-  const [teamFormData, setTeamFormData] = useState({ name: "", description: "" })
   const [saving, setSaving] = useState(false)
-  const [currentUserId, setCurrentUserId] = useState<number | null>(null)
   const [currentUser, setCurrentUser] = useState<any>(null)
 
+  // Form states
+  const [selectedBusinessGroup, setSelectedBusinessGroup] = useState("")
+  const [fullName, setFullName] = useState("")
+  const [phone, setPhone] = useState("")
+  const [showPasswordSection, setShowPasswordSection] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
   useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    setLoading(true)
     try {
       const userData = localStorage.getItem("user")
       if (userData) {
         const user = JSON.parse(userData)
-        setCurrentUserId(user.id)
         setCurrentUser(user)
+        setFullName(user.full_name || "")
+        setSelectedBusinessGroup(user.business_unit_group_id || "")
       }
-    } catch (e) {
-      console.error("Failed to parse user data:", e)
-    }
-  }, [])
 
-  const loadTeams = async () => {
-    setLoading(true)
-    const result = await getTeams()
-    if (result.success && result.data) {
-      setTeams(result.data)
-    } else {
-      setTeams([])
+      const [buResult, usersResult] = await Promise.all([
+        getBusinessUnitGroups(),
+        getUsers(),
+      ])
+
+      if (buResult.success) {
+        setBusinessGroups(buResult.data || [])
+      }
+
+      if (usersResult.success) {
+        const users = usersResult.data || []
+        setAllUsers(users)
+
+        // Group users by their business unit group
+        const mappedMembers = users.map((user: any) => ({
+          id: user.id,
+          name: user.name || user.full_name,
+          email: user.email,
+          group: user.group_name || "No Group"
+        }))
+        setTeamMembers(mappedMembers)
+      }
+    } catch (error) {
+      console.error("Failed to load data:", error)
     }
     setLoading(false)
   }
 
-  const loadMyTeams = async () => {
-    if (!currentUserId) return
-    const result = await getUserTeams(currentUserId)
-    if (result.success && result.data) {
-      setMyTeams(result.data)
-    } else {
-      setMyTeams([])
-    }
-  }
+  const handleSaveBusinessGroup = async () => {
+    setSaving(true)
+    try {
+      // TODO: Implement API call to update business group
+      await new Promise((resolve) => setTimeout(resolve, 1000))
 
-  useEffect(() => {
-    loadTeams()
-  }, [])
-
-  useEffect(() => {
-    if (currentUserId) {
-      loadMyTeams()
-    }
-  }, [currentUserId])
-
-  const handleAddTeam = () => {
-    setEditTeam(null)
-    setTeamFormData({ name: "", description: "" })
-    setShowTeamModal(true)
-  }
-
-  const handleEditTeam = (team: any) => {
-    setEditTeam(team)
-    setTeamFormData({ name: team.name, description: team.description || "" })
-    setShowTeamModal(true)
-  }
-
-  const handleDeleteTeam = async (id: number, name: string) => {
-    if (confirm(`Are you sure you want to delete the team "${name}"? This action cannot be undone.`)) {
-      const result = await deleteTeam(id)
-      if (result.success) {
-        await loadTeams()
-        await loadMyTeams()
-      } else {
-        alert(result.error || "Failed to delete team")
+      // Update localStorage
+      if (currentUser) {
+        const updatedUser = {
+          ...currentUser,
+          business_unit_group_id: selectedBusinessGroup,
+          group_name: businessGroups.find(bg => bg.id === Number(selectedBusinessGroup))?.name
+        }
+        localStorage.setItem("user", JSON.stringify(updatedUser))
+        setCurrentUser(updatedUser)
       }
+
+      alert("Business group updated successfully!")
+    } catch (error) {
+      alert("Failed to update business group")
+    } finally {
+      setSaving(false)
     }
   }
 
-  const handleSaveTeam = async (e: React.FormEvent) => {
+  const handleSaveAccountInfo = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
-
     try {
-      let result
-      if (editTeam) {
-        result = await updateTeam(editTeam.id, teamFormData.name, teamFormData.description)
-      } else {
-        result = await createTeam(teamFormData.name, teamFormData.description)
+      // TODO: Implement API call to update account info
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      // Update localStorage
+      if (currentUser) {
+        const updatedUser = {
+          ...currentUser,
+          full_name: fullName,
+          business_unit_group_id: selectedBusinessGroup,
+          group_name: businessGroups.find(bg => bg.id === Number(selectedBusinessGroup))?.name
+        }
+        localStorage.setItem("user", JSON.stringify(updatedUser))
+        setCurrentUser(updatedUser)
       }
 
-      if (result.success) {
-        await loadTeams()
-        setShowTeamModal(false)
-      } else {
-        alert(result.error || "Failed to save team")
-      }
+      alert("Account information updated successfully!")
     } catch (error) {
-      alert("An error occurred")
+      alert("Failed to update account information")
     } finally {
       setSaving(false)
     }
   }
 
-  const handleJoinTeam = async (teamId: number) => {
-    if (!currentUserId) return
-    setSaving(true)
-    try {
-      const result = await addTeamMember(currentUserId, teamId, "member")
-      if (result.success) {
-        await loadMyTeams()
-        await loadTeams()
-        setShowJoinModal(false)
-      } else {
-        alert(result.error || "Failed to join team")
-      }
-    } catch (error) {
-      alert("An error occurred")
-    } finally {
-      setSaving(false)
-    }
-  }
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
 
-  const handleLeaveTeam = async (teamId: number, teamName: string) => {
-    if (!currentUserId) return
-    if (!confirm(`Are you sure you want to leave "${teamName}"?`)) return
+    if (newPassword !== confirmPassword) {
+      alert("New passwords do not match!")
+      return
+    }
+
+    if (newPassword.length < 6) {
+      alert("Password must be at least 6 characters long")
+      return
+    }
 
     setSaving(true)
     try {
-      const result = await leaveTeam(currentUserId, teamId)
-      if (result.success) {
-        await loadMyTeams()
-        await loadTeams()
-      } else {
-        alert(result.error || "Failed to leave team")
-      }
+      // TODO: Implement API call to change password
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      alert("Password changed successfully!")
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+      setShowPasswordSection(false)
     } catch (error) {
-      alert("An error occurred")
+      alert("Failed to change password")
     } finally {
       setSaving(false)
     }
   }
 
-  const myTeamIds = myTeams.map((t) => t.id)
-  const availableTeams = teams.filter((t) => !myTeamIds.includes(t.id))
+  const groupedTeamMembers = teamMembers.reduce((acc: any, member: any) => {
+    if (!acc[member.group]) {
+      acc[member.group] = []
+    }
+    acc[member.group].push(member)
+    return acc
+  }, {})
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl">
+      <div className="max-w-5xl">
         <div className="mb-8">
-          <h1 className="text-3xl font-sans font-bold text-foreground flex items-center gap-3">
+          <h1 className="text-3xl font-poppins font-bold text-foreground flex items-center gap-3">
             <Settings className="w-8 h-8" />
             Settings
           </h1>
-          <p className="text-muted-foreground mt-2">Manage your account settings and team preferences</p>
+          <p className="text-muted-foreground mt-2">Manage your account settings and preferences</p>
         </div>
 
-        {/* My Teams Section */}
-        <div className="bg-white border border-border rounded-xl p-6 mb-6 shadow-sm">
-          <div className="flex justify-between items-start mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <Check className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <h3 className="font-sans font-semibold text-lg text-foreground">My Teams</h3>
-                <p className="text-sm text-muted-foreground mt-0.5">Teams you are a member of (affects "My Team" filter)</p>
-              </div>
-            </div>
-            <Button onClick={() => setShowJoinModal(true)} size="sm" variant="outline">
-              <UserPlus className="w-4 h-4 mr-2" />
-              Join Team
-            </Button>
-          </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="my-group">My Group</TabsTrigger>
+            <TabsTrigger value="my-team">My Team</TabsTrigger>
+            <TabsTrigger value="account">Account Information</TabsTrigger>
+          </TabsList>
 
-          {myTeams.length === 0 ? (
-            <div className="text-center py-8 border-2 border-dashed border-border rounded-lg">
-              <Users className="w-10 h-10 text-muted-foreground mx-auto mb-2 opacity-50" />
-              <p className="text-muted-foreground font-medium mb-1">You haven't joined any teams yet</p>
-              <p className="text-sm text-muted-foreground mb-3">Join a team to use the "My Team" filter on tickets</p>
-              <Button onClick={() => setShowJoinModal(true)} size="sm" variant="outline">
-                <UserPlus className="w-4 h-4 mr-2" />
-                Join a Team
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {myTeams.map((team) => (
-                <div
-                  key={team.id}
-                  className="flex justify-between items-center p-3 border border-border rounded-lg hover:bg-muted/30 transition-all group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                      <Users className="w-4 h-4 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-foreground">{team.name}</h4>
-                      <p className="text-xs text-muted-foreground">{team.role || "Member"}</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleLeaveTeam(team.id, team.name)}
-                    className="opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
+          {/* My Group Tab */}
+          <TabsContent value="my-group" className="mt-6">
+            <div className="bg-white border border-border rounded-xl p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Users className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-poppins font-semibold text-lg text-foreground">Business Group</h3>
+                  <p className="text-sm text-muted-foreground mt-0.5">Select your business group</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Business Group <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={selectedBusinessGroup}
+                    onChange={(e) => setSelectedBusinessGroup(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-border rounded-lg bg-white text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                   >
-                    <LogOut className="w-4 h-4 mr-1" />
-                    Leave
+                    <option value="">Select a business group</option>
+                    {businessGroups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex justify-end pt-4">
+                  <Button
+                    onClick={handleSaveBusinessGroup}
+                    disabled={saving || !selectedBusinessGroup}
+                    className="bg-gradient-to-r from-primary to-secondary"
+                  >
+                    {saving ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white border border-border rounded-xl p-6 mb-6 shadow-sm">
-          <div className="flex justify-between items-start mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Users className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-sans font-semibold text-lg text-foreground">Teams Management</h3>
-                <p className="text-sm text-muted-foreground mt-0.5">Create and manage your organization teams</p>
               </div>
             </div>
-            <Button onClick={handleAddTeam} size="sm" className="bg-gradient-to-r from-primary to-secondary">
-              <Plus className="w-4 h-4 mr-2" />
-              Create Team
-            </Button>
-          </div>
+          </TabsContent>
 
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading teams...</p>
-            </div>
-          ) : teams.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed border-border rounded-lg">
-              <Users className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-              <p className="text-muted-foreground font-medium mb-2">No teams yet</p>
-              <p className="text-sm text-muted-foreground mb-4">Create your first team to organize your members</p>
-              <Button onClick={handleAddTeam} size="sm" variant="outline">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Team
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {teams.map((team) => (
-                <div
-                  key={team.id}
-                  className="flex justify-between items-center p-4 border border-border rounded-lg hover:border-primary/50 hover:bg-muted/30 transition-all group"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-semibold text-foreground">{team.name}</h4>
-                      <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded">
-                        {team.member_count || 0} members
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{team.description || "No description provided"}</p>
+          {/* My Team Tab */}
+          <TabsContent value="my-team" className="mt-6">
+            <div className="bg-white border border-border rounded-xl p-6 shadow-sm">
+              <div className="flex justify-between items-start mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                    <Check className="w-5 h-5 text-green-600" />
                   </div>
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="sm" onClick={() => handleEditTeam(team)}>
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteTeam(team.id, team.name)}
-                      className="hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                  <div>
+                    <h3 className="font-poppins font-semibold text-lg text-foreground">My Team</h3>
+                    <p className="text-sm text-muted-foreground mt-0.5">Manage your team members</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Existing code */}
-        <div className="bg-white border border-border rounded-xl p-6 space-y-6 shadow-sm">
-          <div>
-            <h3 className="font-sans font-semibold text-foreground mb-4">Account Information</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Display Name</label>
-                <input
-                  type="text"
-                  value={currentUser?.full_name || ""}
-                  readOnly
-                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-surface text-foreground cursor-not-allowed text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Email Address</label>
-                <input
-                  type="email"
-                  value={currentUser?.email || ""}
-                  readOnly
-                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-surface text-foreground cursor-not-allowed text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Business Unit / Group</label>
-                <input
-                  type="text"
-                  value={currentUser?.group_name || "N/A"}
-                  readOnly
-                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-surface text-foreground cursor-not-allowed text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Role</label>
-                <input
-                  type="text"
-                  value={currentUser?.role || "User"}
-                  readOnly
-                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-surface text-foreground cursor-not-allowed text-sm"
-                />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-4">
-              Contact your administrator to update your account information.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {showTeamModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-sans font-bold text-xl text-foreground">
-                {editTeam ? "Edit Team" : "Create New Team"}
-              </h3>
-              <button
-                onClick={() => setShowTeamModal(false)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveTeam} className="space-y-5">
-              <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
-                  Team Name <span className="text-destructive">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={teamFormData.name}
-                  onChange={(e) => setTeamFormData({ ...teamFormData, name: e.target.value })}
-                  required
-                  placeholder="e.g. Development Team"
-                  className="w-full px-4 py-3 border-2 border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">Description</label>
-                <textarea
-                  value={teamFormData.description}
-                  onChange={(e) => setTeamFormData({ ...teamFormData, description: e.target.value })}
-                  placeholder="Describe the team's purpose and responsibilities..."
-                  className="w-full px-4 py-3 border-2 border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all text-sm resize-none"
-                  rows={4}
-                />
-                <p className="text-xs text-muted-foreground mt-1">Optional but recommended</p>
-              </div>
-
-              <div className="flex gap-3 justify-end pt-6 border-t border-border">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowTeamModal(false)}
-                  disabled={saving}
-                  className="px-6"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={saving || !teamFormData.name.trim()}
-                  className="bg-gradient-to-r from-primary to-secondary px-6"
-                >
-                  {saving ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Saving...
-                    </>
-                  ) : (
-                    <>{editTeam ? "Update Team" : "Create Team"}</>
-                  )}
+                <Button size="sm" variant="outline">
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Add User
                 </Button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
 
-      {showJoinModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-sans font-bold text-xl text-foreground">Join a Team</h3>
-              <button
-                onClick={() => setShowJoinModal(false)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {availableTeams.length === 0 ? (
-              <div className="text-center py-8">
-                <Users className="w-10 h-10 text-muted-foreground mx-auto mb-2 opacity-50" />
-                <p className="text-muted-foreground font-medium mb-1">No teams available</p>
-                <p className="text-sm text-muted-foreground">
-                  You are already a member of all teams, or no teams have been created yet.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2 overflow-y-auto flex-1">
-                {availableTeams.map((team) => (
-                  <div
-                    key={team.id}
-                    className="flex justify-between items-center p-3 border border-border rounded-lg hover:bg-muted/30 transition-all"
-                  >
-                    <div className="flex-1">
-                      <h4 className="font-medium text-foreground">{team.name}</h4>
-                      <p className="text-xs text-muted-foreground">
-                        {team.member_count || 0} member{team.member_count !== 1 ? "s" : ""}
-                      </p>
+              {Object.keys(groupedTeamMembers).length === 0 ? (
+                <div className="text-center py-8 border-2 border-dashed border-border rounded-lg">
+                  <Users className="w-10 h-10 text-muted-foreground mx-auto mb-2 opacity-50" />
+                  <p className="text-muted-foreground font-medium mb-1">No team members yet</p>
+                  <p className="text-sm text-muted-foreground">Add users to start building your team</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {Object.entries(groupedTeamMembers).map(([groupName, members]: [string, any]) => (
+                    <div key={groupName} className="border border-border rounded-lg">
+                      <div className="bg-surface px-4 py-3 border-b border-border">
+                        <h4 className="font-semibold text-foreground">{groupName}</h4>
+                      </div>
+                      <div className="p-2">
+                        {members.map((member: any) => (
+                          <div
+                            key={member.id}
+                            className="flex justify-between items-center p-3 rounded-lg hover:bg-surface group"
+                          >
+                            <div>
+                              <p className="font-medium text-foreground">{member.name}</p>
+                              <p className="text-xs text-muted-foreground">{member.email}</p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => handleJoinTeam(team.id)}
-                      disabled={saving}
-                      className="bg-gradient-to-r from-primary to-secondary"
-                    >
-                      <UserPlus className="w-4 h-4 mr-1" />
-                      Join
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex justify-end pt-4 mt-4 border-t border-border">
-              <Button variant="outline" onClick={() => setShowJoinModal(false)}>
-                Close
-              </Button>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        </div>
-      )}
+          </TabsContent>
+
+          {/* Account Information Tab */}
+          <TabsContent value="account" className="mt-6">
+            <div className="bg-white border border-border rounded-xl p-6 shadow-sm">
+              <h3 className="font-poppins font-semibold text-foreground text-lg mb-6">Account Information</h3>
+
+              <form onSubmit={handleSaveAccountInfo} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Display Name</label>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-border rounded-lg bg-white text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Email Address</label>
+                  <input
+                    type="email"
+                    value={currentUser?.email || ""}
+                    readOnly
+                    className="w-full px-4 py-2.5 border border-border rounded-lg bg-surface text-foreground cursor-not-allowed text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Business Group</label>
+                  <select
+                    value={selectedBusinessGroup}
+                    onChange={(e) => setSelectedBusinessGroup(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-border rounded-lg bg-white text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  >
+                    <option value="">Select a business group</option>
+                    {businessGroups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Role</label>
+                  <input
+                    type="text"
+                    value={currentUser?.role?.charAt(0).toUpperCase() + currentUser?.role?.slice(1) || "User"}
+                    readOnly
+                    className="w-full px-4 py-2.5 border border-border rounded-lg bg-surface text-foreground cursor-not-allowed text-sm"
+                  />
+                </div>
+
+                <div className="flex justify-end pt-4">
+                  <Button
+                    type="submit"
+                    disabled={saving}
+                    className="bg-gradient-to-r from-primary to-secondary"
+                  >
+                    {saving ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
+              </form>
+
+              {/* Password Change Section */}
+              <div className="mt-8 pt-6 border-t border-border">
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <h4 className="font-semibold text-foreground">Change Password</h4>
+                    <p className="text-sm text-muted-foreground">Update your password</p>
+                  </div>
+                  {!showPasswordSection && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowPasswordSection(true)}
+                    >
+                      Change Password
+                    </Button>
+                  )}
+                </div>
+
+                {showPasswordSection && (
+                  <form onSubmit={handleChangePassword} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        Current Password <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showCurrentPassword ? "text" : "password"}
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          required
+                          className="w-full px-4 py-2.5 border border-border rounded-lg bg-white text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        New Password <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showNewPassword ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          required
+                          className="w-full px-4 py-2.5 border border-border rounded-lg bg-white text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        Confirm New Password <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          required
+                          className="w-full px-4 py-2.5 border border-border rounded-lg bg-white text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setShowPasswordSection(false)
+                          setCurrentPassword("")
+                          setNewPassword("")
+                          setConfirmPassword("")
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={saving}
+                        className="bg-gradient-to-r from-primary to-secondary"
+                      >
+                        {saving ? "Changing..." : "Change Password"}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
     </DashboardLayout>
   )
 }

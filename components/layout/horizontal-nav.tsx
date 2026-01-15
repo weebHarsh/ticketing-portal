@@ -77,12 +77,12 @@ export default function HorizontalNav() {
               <Image
                 src="/company-logo.svg"
                 alt="Company Logo"
-                width={36}
-                height={36}
-                className="w-9 h-9"
+                width={40}
+                height={40}
+                className="w-10 h-10"
               />
               <div className="hidden sm:block">
-                <h1 className="font-poppins font-bold text-foreground text-base leading-tight">
+                <h1 className="font-poppins font-bold text-foreground text-xl leading-tight">
                   Ticket Portal
                 </h1>
               </div>

@@ -18,7 +18,7 @@ const openSans = Open_Sans({
 })
 
 export const metadata: Metadata = {
-  title: "Ticketing Portal - Sharpen Focus",
+  title: "Ticket Portal",
   description: "Internal work activity tracking and ticket management system for Customer Success teams",
   generator: "v0.app",
   icons: {
