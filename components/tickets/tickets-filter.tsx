@@ -15,6 +15,7 @@ export default function TicketsFilter({ onFilterChange }: TicketsFilterProps) {
     dateFrom: "",
     dateTo: "",
     assignee: "",
+    spoc: "",
     type: "all",
     search: "",
     myTeam: false,
@@ -45,6 +46,7 @@ export default function TicketsFilter({ onFilterChange }: TicketsFilterProps) {
       dateFrom: "",
       dateTo: "",
       assignee: "",
+      spoc: "",
       type: "all",
       search: "",
       myTeam: false,
@@ -76,6 +78,8 @@ export default function TicketsFilter({ onFilterChange }: TicketsFilterProps) {
     filters.type !== "all",
     filters.dateFrom,
     filters.dateTo,
+    filters.spoc,
+    filters.assignee,
     filters.myTeam,
   ].filter(Boolean).length
 
@@ -194,6 +198,30 @@ export default function TicketsFilter({ onFilterChange }: TicketsFilterProps) {
                 value={filters.dateTo}
                 onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
                 className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+              />
+            </div>
+
+            {/* SPOC Filter */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">SPOC</label>
+              <input
+                type="text"
+                value={filters.spoc}
+                onChange={(e) => setFilters({ ...filters, spoc: e.target.value })}
+                placeholder="Filter by SPOC name"
+                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+              />
+            </div>
+
+            {/* Assignee Filter */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Assignee</label>
+              <input
+                type="text"
+                value={filters.assignee}
+                onChange={(e) => setFilters({ ...filters, assignee: e.target.value })}
+                placeholder="Filter by assignee name"
+                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
               />
             </div>
           </div>

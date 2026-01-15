@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
-import { Eye, Edit, Trash2, Download, Paperclip } from "lucide-react"
+import { Eye, Edit, Trash2, Download, Paperclip, FileDown } from "lucide-react"
 import {
   getTickets,
   getTicketById,
@@ -11,6 +11,7 @@ import {
   updateTicketAssignee,
   getUsers,
 } from "@/lib/actions/tickets"
+import * as XLSX from "xlsx"
 
 interface Ticket {
   id: number
@@ -156,6 +157,56 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
     "in-progress": "bg-purple-100 text-purple-700",
   }
 
+  const handleExport = () => {
+    // Prepare data for export
+    const exportData = tickets.map((ticket, index) => ({
+      "#": index + 1,
+      "Initiator": ticket.creator_name || "Unknown",
+      "Group": ticket.group_name || "No Group",
+      "Date": format(new Date(ticket.created_at), "MMM dd, yyyy"),
+      "Time": format(new Date(ticket.created_at), "hh:mm a"),
+      "Type": ticket.ticket_type,
+      "Ticket ID": ticket.ticket_id,
+      "Category": ticket.category_name || "N/A",
+      "Subcategory": ticket.subcategory_name || "-",
+      "Description": ticket.description || ticket.title,
+      "Assignee": ticket.assignee_name || "Unassigned",
+      "SPOC": ticket.spoc_name || "-",
+      "Status": ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1),
+      "Files": ticket.attachment_count || 0,
+    }))
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(exportData)
+
+    // Set column widths
+    ws["!cols"] = [
+      { wch: 5 },  // #
+      { wch: 20 }, // Initiator
+      { wch: 15 }, // Group
+      { wch: 15 }, // Date
+      { wch: 10 }, // Time
+      { wch: 12 }, // Type
+      { wch: 15 }, // Ticket ID
+      { wch: 20 }, // Category
+      { wch: 20 }, // Subcategory
+      { wch: 40 }, // Description
+      { wch: 20 }, // Assignee
+      { wch: 15 }, // SPOC
+      { wch: 12 }, // Status
+      { wch: 8 },  // Files
+    ]
+
+    XLSX.utils.book_append_sheet(wb, ws, "Tickets")
+
+    // Generate filename with timestamp
+    const filename = `tickets_${format(new Date(), "yyyy-MM-dd_HHmmss")}.xlsx`
+
+    // Download file
+    XLSX.writeFile(wb, filename)
+  }
+
   if (isLoading) {
     return (
       <div className="bg-white border border-border rounded-xl overflow-hidden">
@@ -176,6 +227,17 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
 
   return (
     <div className="bg-white border border-border rounded-xl overflow-hidden">
+      {/* Export Button */}
+      <div className="flex justify-end p-4 border-b border-border">
+        <button
+          onClick={handleExport}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+        >
+          <FileDown className="w-4 h-4" />
+          Export to Excel
+        </button>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-surface border-b border-border">
@@ -187,16 +249,19 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                 Initiator
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
-                Date/Time
+                Date
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+                Type
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+                Ticket ID
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
                 Category
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider max-w-xs">
                 Description
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
-                SPOC
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider w-[160px]">
                 Assignee
@@ -235,7 +300,7 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                   </div>
                 </td>
 
-                {/* Date/Time Stacked */}
+                {/* Date Stacked */}
                 <td className="px-4 py-3">
                   <div className="flex flex-col">
                     <span className="text-sm font-medium text-foreground">
@@ -245,6 +310,20 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                       {format(new Date(ticket.created_at), "hh:mm a")}
                     </span>
                   </div>
+                </td>
+
+                {/* Type */}
+                <td className="px-4 py-3">
+                  <span className="text-sm text-foreground capitalize">
+                    {ticket.ticket_type}
+                  </span>
+                </td>
+
+                {/* Ticket ID */}
+                <td className="px-4 py-3">
+                  <span className="text-sm font-medium text-primary">
+                    {ticket.ticket_id}
+                  </span>
                 </td>
 
                 {/* Category/Subcategory Stacked */}
@@ -275,12 +354,7 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                   )}
                 </td>
 
-                {/* SPOC */}
-                <td className="px-4 py-3 text-sm text-foreground">
-                  {ticket.spoc_name || "-"}
-                </td>
-
-                {/* Assignee with inline edit */}
+                {/* Assignee and SPOC Combined (2-line) */}
                 <td className="px-4 py-3 w-[160px]">
                   {editingAssignee === ticket.id ? (
                     <select
@@ -300,18 +374,23 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                       ))}
                     </select>
                   ) : (
-                    <span
-                      className={`text-sm inline-block w-[140px] ${
-                        canEditAssignee(ticket)
-                          ? "cursor-pointer hover:text-primary hover:underline"
-                          : ""
-                      }`}
-                      onClick={() =>
-                        canEditAssignee(ticket) && setEditingAssignee(ticket.id)
-                      }
-                    >
-                      {ticket.assignee_name || "Unassigned"}
-                    </span>
+                    <div className="flex flex-col">
+                      <span
+                        className={`text-sm font-medium text-foreground ${
+                          canEditAssignee(ticket)
+                            ? "cursor-pointer hover:text-primary hover:underline"
+                            : ""
+                        }`}
+                        onClick={() =>
+                          canEditAssignee(ticket) && setEditingAssignee(ticket.id)
+                        }
+                      >
+                        {ticket.assignee_name || "Unassigned"}
+                      </span>
+                      <span className="text-xs text-foreground-secondary">
+                        SPOC: {ticket.spoc_name || "-"}
+                      </span>
+                    </div>
                   )}
                 </td>
 
