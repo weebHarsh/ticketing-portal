@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
-import { Eye, Edit, Trash2, Download, Paperclip, FileDown } from "lucide-react"
+import { Eye, Edit, Trash2, Download, Paperclip, FileDown, UserPlus } from "lucide-react"
 import {
   getTickets,
   getTicketById,
@@ -12,6 +12,7 @@ import {
   getUsers,
 } from "@/lib/actions/tickets"
 import * as XLSX from "xlsx"
+import AssigneeModal from "./assignee-modal"
 
 interface Ticket {
   id: number
@@ -23,6 +24,7 @@ interface Ticket {
   ticket_type: "support" | "requirement"
   status: "open" | "closed" | "hold"
   created_at: string
+  created_by: number
   creator_name: string | null
   assignee_name: string | null
   assigned_to: number | null
@@ -59,9 +61,11 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [editingAssignee, setEditingAssignee] = useState<number | null>(null)
   const [currentUser, setCurrentUser] = useState<any>(null)
-  const [assigneeSearchTerm, setAssigneeSearchTerm] = useState("")
+
+  // Modal state for assignee selection
+  const [isAssigneeModalOpen, setIsAssigneeModalOpen] = useState(false)
+  const [selectedTicketForAssignment, setSelectedTicketForAssignment] = useState<Ticket | null>(null)
 
   useEffect(() => {
     try {
@@ -144,13 +148,23 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
     }
   }
 
-  const handleAssigneeChange = async (ticketId: number, newAssigneeId: number) => {
-    const result = await updateTicketAssignee(ticketId, newAssigneeId)
+  const handleAssigneeChange = async (ticketId: number, newAssigneeId: number | null) => {
+    const result = await updateTicketAssignee(ticketId, newAssigneeId || 0)
     if (result.success) {
       loadTickets()
-      setEditingAssignee(null)
     } else {
       alert("Failed to update assignee")
+    }
+  }
+
+  const openAssigneeModal = (ticket: Ticket) => {
+    setSelectedTicketForAssignment(ticket)
+    setIsAssigneeModalOpen(true)
+  }
+
+  const handleAssigneeSelect = (userId: number | null) => {
+    if (selectedTicketForAssignment) {
+      handleAssigneeChange(selectedTicketForAssignment.id, userId)
     }
   }
 
@@ -368,63 +382,38 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
 
                 {/* Assignee and SPOC Combined (2-line) */}
                 <td className="px-4 py-3 w-[200px]">
-                  {editingAssignee === ticket.id ? (
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="Search employee..."
-                        value={assigneeSearchTerm}
-                        onChange={(e) => setAssigneeSearchTerm(e.target.value)}
-                        className="text-sm border border-border rounded px-2 py-1 w-full bg-white mb-1"
-                        autoFocus
-                      />
-                      <select
-                        className="text-sm border border-border rounded px-2 py-1 w-full bg-white max-h-32 overflow-y-auto"
-                        value={ticket.assigned_to || ""}
-                        onChange={(e) => {
-                          handleAssigneeChange(ticket.id, parseInt(e.target.value))
-                          setAssigneeSearchTerm("")
-                        }}
-                        onBlur={() => {
-                          setTimeout(() => {
-                            setEditingAssignee(null)
-                            setAssigneeSearchTerm("")
-                          }, 200)
-                        }}
-                        size={5}
-                      >
-                        <option value="">Unassigned</option>
-                        {users
-                          .filter((user) =>
-                            user.full_name.toLowerCase().includes(assigneeSearchTerm.toLowerCase()) ||
-                            user.email.toLowerCase().includes(assigneeSearchTerm.toLowerCase())
-                          )
-                          .map((user) => (
-                            <option key={user.id} value={user.id}>
-                              {user.full_name} ({user.email})
-                            </option>
-                          ))}
-                      </select>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col">
+                  <div className="flex flex-col gap-1">
+                    {/* Assignee - Clickable button for SPOCs/Admins */}
+                    {ticket.assignee_name ? (
                       <span
                         className={`text-sm font-medium text-foreground ${
                           canEditAssignee(ticket)
-                            ? "cursor-pointer hover:text-primary hover:underline"
+                            ? "cursor-pointer hover:text-primary"
                             : ""
                         }`}
-                        onClick={() =>
-                          canEditAssignee(ticket) && setEditingAssignee(ticket.id)
-                        }
+                        onClick={() => canEditAssignee(ticket) && openAssigneeModal(ticket)}
                       >
-                        {ticket.assignee_name || "Unassigned"}
+                        {ticket.assignee_name}
+                        {canEditAssignee(ticket) && (
+                          <Edit className="w-3 h-3 inline ml-1 opacity-50" />
+                        )}
                       </span>
-                      <span className="text-xs text-foreground-secondary">
-                        SPOC: {ticket.spoc_name || "-"}
-                      </span>
-                    </div>
-                  )}
+                    ) : canEditAssignee(ticket) ? (
+                      <button
+                        onClick={() => openAssigneeModal(ticket)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-700 rounded-md text-sm font-medium hover:bg-amber-200 transition-colors w-fit"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        Assign
+                      </button>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Unassigned</span>
+                    )}
+                    {/* SPOC */}
+                    <span className="text-xs text-foreground-secondary">
+                      SPOC: {ticket.spoc_name || "-"}
+                    </span>
+                  </div>
                 </td>
 
                 {/* Status Badge */}
@@ -502,6 +491,18 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
           Showing {tickets.length} ticket{tickets.length !== 1 ? "s" : ""}
         </p>
       </div>
+
+      {/* Assignee Modal */}
+      <AssigneeModal
+        isOpen={isAssigneeModalOpen}
+        onClose={() => {
+          setIsAssigneeModalOpen(false)
+          setSelectedTicketForAssignment(null)
+        }}
+        onSelect={handleAssigneeSelect}
+        currentAssigneeId={selectedTicketForAssignment?.assigned_to || null}
+        ticketTitle={selectedTicketForAssignment?.title || ""}
+      />
     </div>
   )
 }
