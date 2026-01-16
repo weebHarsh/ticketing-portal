@@ -3,6 +3,7 @@
 import { sql } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { getCurrentUser } from "./auth"
+import { sendSpocNotificationEmail, sendAssignmentEmail, sendStatusChangeEmail } from "@/lib/email"
 
 export async function getTickets(filters?: {
   status?: string
@@ -192,6 +193,34 @@ export async function createTicket(data: {
     revalidatePath("/dashboard")
     revalidatePath("/tickets")
 
+    // Send email notification to SPOC
+    if (data.spocId) {
+      try {
+        const spocResult = await sql`
+          SELECT u.email, u.full_name, bug.name as group_name
+          FROM users u
+          LEFT JOIN business_unit_groups bug ON u.business_unit_group_id = bug.id
+          WHERE u.id = ${data.spocId}
+        `
+        if (spocResult.length > 0) {
+          const spoc = spocResult[0]
+          await sendSpocNotificationEmail({
+            spocEmail: spoc.email,
+            spocName: spoc.full_name,
+            ticketId: ticketId,
+            ticketDbId: result[0].id,
+            ticketTitle: data.title,
+            description: data.description,
+            creatorName: currentUser.full_name || currentUser.email,
+            creatorGroup: currentUser.group_name || 'Unknown Group',
+          })
+        }
+      } catch (emailError) {
+        console.error("[Email] Failed to send SPOC notification:", emailError)
+        // Don't fail ticket creation if email fails
+      }
+    }
+
     return { success: true, data: result[0] }
   } catch (error) {
     console.error("[v0] Error creating ticket:", error)
@@ -201,9 +230,24 @@ export async function createTicket(data: {
 
 export async function updateTicketStatus(ticketId: number, status: string) {
   try {
+    const currentUser = await getCurrentUser()
+
+    // Get ticket info before update
+    const ticketBefore = await sql`
+      SELECT t.*, u.full_name as creator_name, u.email as creator_email,
+             a.full_name as assignee_name, a.email as assignee_email,
+             s.full_name as spoc_name, s.email as spoc_email
+      FROM tickets t
+      LEFT JOIN users u ON t.created_by = u.id
+      LEFT JOIN users a ON t.assigned_to = a.id
+      LEFT JOIN users s ON t.spoc_user_id = s.id
+      WHERE t.id = ${ticketId}
+    `
+    const oldStatus = ticketBefore[0]?.status
+
     await sql`
-      UPDATE tickets 
-      SET status = ${status}, 
+      UPDATE tickets
+      SET status = ${status},
           updated_at = CURRENT_TIMESTAMP,
           resolved_at = CASE WHEN ${status} = 'closed' THEN CURRENT_TIMESTAMP ELSE resolved_at END
       WHERE id = ${ticketId}
@@ -211,6 +255,40 @@ export async function updateTicketStatus(ticketId: number, status: string) {
 
     revalidatePath("/dashboard")
     revalidatePath("/tickets")
+
+    // Send email notifications for status change
+    if (ticketBefore.length > 0 && oldStatus !== status) {
+      const ticket = ticketBefore[0]
+      const changedByName = currentUser?.full_name || 'System'
+
+      // Notify creator if they didn't make the change
+      if (ticket.creator_email && ticket.created_by !== currentUser?.id) {
+        sendStatusChangeEmail({
+          recipientEmail: ticket.creator_email,
+          recipientName: ticket.creator_name,
+          ticketId: ticket.ticket_id,
+          ticketDbId: ticketId,
+          ticketTitle: ticket.title,
+          oldStatus,
+          newStatus: status,
+          changedByName,
+        }).catch(err => console.error('[Email] Status change email failed:', err))
+      }
+
+      // Notify assignee if different from creator and they didn't make the change
+      if (ticket.assignee_email && ticket.assigned_to !== ticket.created_by && ticket.assigned_to !== currentUser?.id) {
+        sendStatusChangeEmail({
+          recipientEmail: ticket.assignee_email,
+          recipientName: ticket.assignee_name,
+          ticketId: ticket.ticket_id,
+          ticketDbId: ticketId,
+          ticketTitle: ticket.title,
+          oldStatus,
+          newStatus: status,
+          changedByName,
+        }).catch(err => console.error('[Email] Status change email failed:', err))
+      }
+    }
 
     return { success: true }
   } catch (error) {
@@ -341,6 +419,15 @@ export async function getUsers() {
 
 export async function updateTicketAssignee(ticketId: number, assigneeId: number) {
   try {
+    const currentUser = await getCurrentUser()
+
+    // Get ticket info before update
+    const ticketBefore = await sql`
+      SELECT t.ticket_id, t.title, t.description, t.priority, t.assigned_to
+      FROM tickets t
+      WHERE t.id = ${ticketId}
+    `
+
     await sql`
       UPDATE tickets
       SET assigned_to = ${assigneeId}, updated_at = CURRENT_TIMESTAMP
@@ -349,6 +436,37 @@ export async function updateTicketAssignee(ticketId: number, assigneeId: number)
 
     revalidatePath("/tickets")
     revalidatePath(`/tickets/${ticketId}`)
+
+    // Send email notification to new assignee
+    if (assigneeId && ticketBefore.length > 0) {
+      const ticket = ticketBefore[0]
+      const oldAssigneeId = ticket.assigned_to
+
+      // Only send email if assignee actually changed
+      if (oldAssigneeId !== assigneeId) {
+        try {
+          const assigneeResult = await sql`
+            SELECT email, full_name FROM users WHERE id = ${assigneeId}
+          `
+          if (assigneeResult.length > 0) {
+            const assignee = assigneeResult[0]
+            await sendAssignmentEmail({
+              assigneeEmail: assignee.email,
+              assigneeName: assignee.full_name,
+              ticketId: ticket.ticket_id,
+              ticketDbId: ticketId,
+              ticketTitle: ticket.title,
+              description: ticket.description || '',
+              priority: ticket.priority,
+              assignedByName: currentUser?.full_name || 'System',
+            })
+          }
+        } catch (emailError) {
+          console.error("[Email] Failed to send assignment email:", emailError)
+          // Don't fail the update if email fails
+        }
+      }
+    }
 
     return { success: true }
   } catch (error) {
