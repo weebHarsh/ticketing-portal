@@ -16,71 +16,7 @@ export async function getTickets(filters?: {
   userId?: number
 }) {
   try {
-    // Build WHERE conditions dynamically
-    const conditions = ["1=1"]
-
-    // Exclude soft-deleted tickets by default
-    if (!filters?.includeDeleted) {
-      conditions.push("(t.is_deleted IS NULL OR t.is_deleted = FALSE)")
-    }
-
-    // Status filter
-    if (filters?.status && filters.status !== "all") {
-      conditions.push(`t.status = '${filters.status}'`)
-    }
-
-    // Type filter
-    if (filters?.type && filters.type !== "all") {
-      conditions.push(`t.ticket_type = '${filters.type}'`)
-    }
-
-    // Assignee filter
-    if (filters?.assignee) {
-      conditions.push(`t.assigned_to = ${parseInt(filters.assignee)}`)
-    }
-
-    // Universal search across multiple fields
-    if (filters?.search) {
-      const searchValue = filters.search.replace(/'/g, "''") // Escape single quotes
-      conditions.push(`(
-        t.title ILIKE '%${searchValue}%' OR
-        t.ticket_id ILIKE '%${searchValue}%' OR
-        t.description ILIKE '%${searchValue}%' OR
-        u.full_name ILIKE '%${searchValue}%' OR
-        a.full_name ILIKE '%${searchValue}%' OR
-        c.name ILIKE '%${searchValue}%'
-      )`)
-    }
-
-    // Date from filter
-    if (filters?.dateFrom) {
-      conditions.push(`t.created_at >= '${filters.dateFrom}'`)
-    }
-
-    // Date to filter
-    if (filters?.dateTo) {
-      conditions.push(`t.created_at <= '${filters.dateTo}'`)
-    }
-
-    // My Team filter - show tickets where team members are creator OR assignee
-    if (filters?.myTeam && filters?.userId) {
-      conditions.push(`(
-        t.created_by IN (
-          SELECT tm2.user_id FROM team_members tm1
-          JOIN team_members tm2 ON tm1.team_id = tm2.team_id
-          WHERE tm1.user_id = ${filters.userId}
-        )
-        OR t.assigned_to IN (
-          SELECT tm2.user_id FROM team_members tm1
-          JOIN team_members tm2 ON tm1.team_id = tm2.team_id
-          WHERE tm1.user_id = ${filters.userId}
-        )
-      )`)
-    }
-
-    const whereClause = conditions.join(" AND ")
-
-    // Use Neon's template literal syntax
+    // Fetch all non-deleted tickets - filtering done client-side for flexibility
     const tickets = await sql`
       SELECT
         t.*,
@@ -98,11 +34,49 @@ export async function getTickets(filters?: {
       LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN subcategories sc ON t.subcategory_id = sc.id
       LEFT JOIN business_unit_groups bug ON t.business_unit_group_id = bug.id
-      WHERE ${sql.raw(whereClause)}
+      WHERE (t.is_deleted IS NULL OR t.is_deleted = FALSE)
       ORDER BY t.created_at DESC
     `
 
-    return { success: true, data: tickets }
+    // Apply filters in JavaScript
+    let filteredTickets = [...tickets]
+
+    if (filters?.status && filters.status !== "all") {
+      filteredTickets = filteredTickets.filter(t => t.status === filters.status)
+    }
+
+    if (filters?.type && filters.type !== "all") {
+      filteredTickets = filteredTickets.filter(t => t.ticket_type === filters.type)
+    }
+
+    if (filters?.assignee) {
+      const assigneeId = parseInt(filters.assignee)
+      filteredTickets = filteredTickets.filter(t => t.assigned_to === assigneeId)
+    }
+
+    if (filters?.search) {
+      const searchLower = filters.search.toLowerCase()
+      filteredTickets = filteredTickets.filter(t =>
+        t.title?.toLowerCase().includes(searchLower) ||
+        t.ticket_id?.toLowerCase().includes(searchLower) ||
+        t.description?.toLowerCase().includes(searchLower) ||
+        t.creator_name?.toLowerCase().includes(searchLower) ||
+        t.assignee_name?.toLowerCase().includes(searchLower) ||
+        t.category_name?.toLowerCase().includes(searchLower)
+      )
+    }
+
+    if (filters?.dateFrom) {
+      const fromDate = new Date(filters.dateFrom)
+      filteredTickets = filteredTickets.filter(t => new Date(t.created_at) >= fromDate)
+    }
+
+    if (filters?.dateTo) {
+      const toDate = new Date(filters.dateTo)
+      filteredTickets = filteredTickets.filter(t => new Date(t.created_at) <= toDate)
+    }
+
+    return { success: true, data: filteredTickets }
   } catch (error) {
     console.error("[v0] Error fetching tickets:", error)
     return { success: false, error: "Failed to fetch tickets" }

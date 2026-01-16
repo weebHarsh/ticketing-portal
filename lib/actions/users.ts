@@ -9,26 +9,7 @@ export async function getAllUsers(filters?: {
   includeInactive?: boolean
 }) {
   try {
-    // Build WHERE conditions dynamically
-    const conditions = ["1=1"]
-
-    // Exclude inactive users by default
-    if (!filters?.includeInactive) {
-      conditions.push("(u.is_active IS NULL OR u.is_active = TRUE)")
-    }
-
-    if (filters?.role && filters.role !== "all") {
-      conditions.push(`u.role = '${filters.role}'`)
-    }
-
-    if (filters?.search) {
-      const searchValue = filters.search.replace(/'/g, "''") // Escape single quotes
-      conditions.push(`(u.full_name ILIKE '%${searchValue}%' OR u.email ILIKE '%${searchValue}%')`)
-    }
-
-    const whereClause = conditions.join(" AND ")
-
-    // Use Neon's template literal syntax
+    // Fetch all users - filtering done in JavaScript
     const users = await sql`
       SELECT
         u.id,
@@ -44,12 +25,27 @@ export async function getAllUsers(filters?: {
       FROM users u
       LEFT JOIN tickets t ON u.id = t.assigned_to
       LEFT JOIN team_members tm ON u.id = tm.user_id
-      WHERE ${sql.raw(whereClause)}
+      WHERE (u.is_active IS NULL OR u.is_active = TRUE)
       GROUP BY u.id, u.email, u.full_name, u.role, u.avatar_url, u.created_at, u.updated_at, u.is_active
       ORDER BY u.created_at DESC
     `
 
-    return { success: true, data: users }
+    // Apply filters in JavaScript
+    let filteredUsers = [...users]
+
+    if (filters?.role && filters.role !== "all") {
+      filteredUsers = filteredUsers.filter(u => u.role === filters.role)
+    }
+
+    if (filters?.search) {
+      const searchLower = filters.search.toLowerCase()
+      filteredUsers = filteredUsers.filter(u =>
+        u.full_name?.toLowerCase().includes(searchLower) ||
+        u.email?.toLowerCase().includes(searchLower)
+      )
+    }
+
+    return { success: true, data: filteredUsers }
   } catch (error) {
     console.error("Error fetching users:", error)
     return { success: false, error: "Failed to fetch users", data: [] }
@@ -121,36 +117,15 @@ export async function updateUser(
   }
 ) {
   try {
-    const updates: string[] = []
-
-    if (data.fullName !== undefined) {
-      updates.push(`full_name = '${data.fullName.replace(/'/g, "''")}'`)
-    }
-
-    if (data.email !== undefined) {
-      updates.push(`email = '${data.email.replace(/'/g, "''")}'`)
-    }
-
-    if (data.role !== undefined) {
-      updates.push(`role = '${data.role}'`)
-    }
-
-    if (data.avatarUrl !== undefined) {
-      updates.push(`avatar_url = ${data.avatarUrl ? `'${data.avatarUrl.replace(/'/g, "''")}'` : "NULL"}`)
-    }
-
-    if (updates.length === 0) {
-      return { success: false, error: "No fields to update" }
-    }
-
-    updates.push(`updated_at = CURRENT_TIMESTAMP`)
-
-    const updateQuery = updates.join(", ")
-
-    // Use Neon's template literal syntax with sql.raw for dynamic SET clause
+    // Update user with all fields using Neon's template literals
     const result = await sql`
       UPDATE users
-      SET ${sql.raw(updateQuery)}
+      SET
+        full_name = COALESCE(${data.fullName ?? null}, full_name),
+        email = COALESCE(${data.email ?? null}, email),
+        role = COALESCE(${data.role ?? null}, role),
+        avatar_url = COALESCE(${data.avatarUrl ?? null}, avatar_url),
+        updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
       RETURNING id, email, full_name, role, avatar_url, created_at, updated_at
     `
