@@ -12,7 +12,6 @@ import {
   getBusinessUnitGroups,
   getCategories,
   getSubcategories,
-  getAutoTitleTemplate,
   getProjects,
   getProductReleases,
 } from "@/lib/actions/master-data"
@@ -147,35 +146,7 @@ export default function CreateTicketForm() {
     }
   }
 
-  useEffect(() => {
-    // Try auto-fill when business unit, category, or subcategory changes
-    if (formData.businessUnitGroupId && formData.categoryId) {
-      loadAutoFillData()
-    }
-  }, [formData.businessUnitGroupId, formData.categoryId, formData.subcategoryId])
-
-  const loadAutoFillData = async () => {
-    console.log("[v0] Loading auto-fill data for classification")
-    const result = await getAutoTitleTemplate(
-      Number(formData.businessUnitGroupId),
-      Number(formData.categoryId),
-      formData.subcategoryId ? Number(formData.subcategoryId) : null,
-    )
-
-    console.log("[v0] Auto-fill result:", result)
-
-    if (result.success && result.data) {
-      const { auto_title_template, estimated_duration, spoc_user_id } = result.data
-
-      // Auto-fill description from the template (previously was title)
-      setFormData((prev) => ({
-        ...prev,
-        description: auto_title_template || prev.description,
-        estimatedDuration: estimated_duration ? `${estimated_duration} minutes` : "",
-        spocId: spoc_user_id ? spoc_user_id.toString() : prev.spocId,
-      }))
-    }
-  }
+  // Note: Auto-fill is now handled directly in handleSubcategoryChange using subcategory data
 
   useEffect(() => {
     if (formData.businessUnitGroupId) {
@@ -216,10 +187,33 @@ export default function CreateTicketForm() {
   }
 
   const handleSubcategoryChange = (value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      subcategoryId: value,
-    }))
+    // Find the selected subcategory to get auto-fill data
+    const selectedSubcat = subcategories.find((s) => s.id.toString() === value)
+
+    if (selectedSubcat) {
+      // Auto-fill from subcategory data
+      const durationMinutes = selectedSubcat.estimated_duration_minutes || 0
+      let durationText = ""
+      if (durationMinutes >= 60) {
+        const hours = Math.floor(durationMinutes / 60)
+        const mins = durationMinutes % 60
+        durationText = mins > 0 ? `${hours} hr ${mins} min` : `${hours} hr`
+      } else if (durationMinutes > 0) {
+        durationText = `${durationMinutes} min`
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        subcategoryId: value,
+        description: selectedSubcat.input_template || prev.description,
+        estimatedDuration: durationText,
+      }))
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        subcategoryId: value,
+      }))
+    }
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

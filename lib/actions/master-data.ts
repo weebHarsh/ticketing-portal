@@ -141,14 +141,18 @@ export async function getSubcategories(categoryId?: number) {
   try {
     const result = categoryId
       ? await sql`
-          SELECT s.*, c.name as category_name 
+          SELECT s.id, s.category_id, s.name, s.description,
+                 s.input_template, s.estimated_duration_minutes, s.closure_steps,
+                 c.name as category_name
           FROM subcategories s
           JOIN categories c ON s.category_id = c.id
           WHERE s.category_id = ${categoryId}
           ORDER BY s.name ASC
         `
       : await sql`
-          SELECT s.*, c.name as category_name 
+          SELECT s.id, s.category_id, s.name, s.description,
+                 s.input_template, s.estimated_duration_minutes, s.closure_steps,
+                 c.name as category_name
           FROM subcategories s
           JOIN categories c ON s.category_id = c.id
           ORDER BY c.name, s.name ASC
@@ -157,6 +161,24 @@ export async function getSubcategories(categoryId?: number) {
   } catch (error) {
     console.error("Error fetching subcategories:", error)
     return { success: false, error: "Failed to fetch subcategories", data: [] }
+  }
+}
+
+// Get subcategory details for auto-fill (template, duration, closure steps)
+export async function getSubcategoryDetails(subcategoryId: number) {
+  try {
+    const result = await sql`
+      SELECT
+        s.id, s.name, s.input_template, s.estimated_duration_minutes, s.closure_steps,
+        c.id as category_id, c.name as category_name
+      FROM subcategories s
+      JOIN categories c ON s.category_id = c.id
+      WHERE s.id = ${subcategoryId}
+    `
+    return { success: true, data: result.length > 0 ? result[0] : null }
+  } catch (error) {
+    console.error("Error fetching subcategory details:", error)
+    return { success: false, error: "Failed to fetch subcategory details", data: null }
   }
 }
 

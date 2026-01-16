@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import DashboardLayout from "@/components/layout/dashboard-layout"
-import { ArrowLeft, Edit, MessageSquare, Paperclip, Clock, User, Calendar, Tag, Download, FileText } from "lucide-react"
+import { ArrowLeft, Edit, MessageSquare, Paperclip, Clock, User, Calendar, Tag, Download, FileText, ListChecks } from "lucide-react"
 import { getTicketById, updateTicketStatus, addComment } from "@/lib/actions/tickets"
+import { getSubcategoryDetails } from "@/lib/actions/master-data"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 
@@ -13,6 +14,7 @@ export default function TicketDetailPage() {
   const router = useRouter()
   const ticketId = params.id as string
   const [ticket, setTicket] = useState<any>(null)
+  const [closureSteps, setClosureSteps] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [newComment, setNewComment] = useState("")
   const [addingComment, setAddingComment] = useState(false)
@@ -30,6 +32,13 @@ export default function TicketDetailPage() {
     const result = await getTicketById(Number(ticketId))
     if (result.success) {
       setTicket(result.data)
+      // Fetch closure steps if ticket has a subcategory
+      if (result.data?.subcategory_id) {
+        const subcatResult = await getSubcategoryDetails(result.data.subcategory_id)
+        if (subcatResult.success && subcatResult.data?.closure_steps) {
+          setClosureSteps(subcatResult.data.closure_steps)
+        }
+      }
     }
     setLoading(false)
   }
@@ -212,6 +221,19 @@ export default function TicketDetailPage() {
                 </p>
               )}
             </div>
+
+            {/* Closure Steps */}
+            {closureSteps && (
+              <div className="bg-white border border-border rounded-xl p-6">
+                <h2 className="font-poppins font-bold text-foreground mb-4 flex items-center gap-2">
+                  <ListChecks className="w-5 h-5" />
+                  Closure Steps
+                </h2>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{closureSteps}</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
