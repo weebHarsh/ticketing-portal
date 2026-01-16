@@ -356,9 +356,9 @@ export default function CreateTicketForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="p-4 bg-danger bg-opacity-10 border border-danger border-opacity-30 rounded-lg flex gap-3">
-          <AlertCircle className="w-5 h-5 text-danger flex-shrink-0 mt-0.5" />
-          <p className="text-danger text-sm">{error}</p>
+        <div className="p-4 bg-red-50 border border-red-300 rounded-lg flex gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <p className="text-red-700 text-sm font-medium">{error}</p>
         </div>
       )}
 

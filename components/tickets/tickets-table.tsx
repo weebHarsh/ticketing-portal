@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
-import { Eye, Edit, Trash2, Download, Paperclip, FileDown, UserPlus } from "lucide-react"
+import { Eye, Edit, Trash2, Download, Paperclip, FileDown, UserPlus, FileText, X } from "lucide-react"
 import {
   getTickets,
   getTicketById,
@@ -66,6 +66,23 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
   // Modal state for assignee selection
   const [isAssigneeModalOpen, setIsAssigneeModalOpen] = useState(false)
   const [selectedTicketForAssignment, setSelectedTicketForAssignment] = useState<Ticket | null>(null)
+
+  // Attachments dropdown state
+  const [attachmentsDropdownOpen, setAttachmentsDropdownOpen] = useState<number | null>(null)
+  const [attachmentsList, setAttachmentsList] = useState<any[]>([])
+  const [loadingAttachments, setLoadingAttachments] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setAttachmentsDropdownOpen(null)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
 
   useEffect(() => {
     try {
@@ -175,6 +192,24 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
       userId === ticket.spoc_user_id ||
       currentUser.role?.toLowerCase() === "admin"
     )
+  }
+
+  const toggleAttachmentsDropdown = async (ticketId: number) => {
+    if (attachmentsDropdownOpen === ticketId) {
+      setAttachmentsDropdownOpen(null)
+      return
+    }
+
+    setAttachmentsDropdownOpen(ticketId)
+    setLoadingAttachments(true)
+
+    const result = await getTicketById(ticketId)
+    if (result.success && result.data?.attachments) {
+      setAttachmentsList(result.data.attachments)
+    } else {
+      setAttachmentsList([])
+    }
+    setLoadingAttachments(false)
   }
 
   const statusColor = {
@@ -428,24 +463,63 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                 </td>
 
                 {/* Attachments */}
-                <td className="px-4 py-3 text-center">
+                <td className="px-4 py-3 text-center relative">
                   {ticket.attachment_count > 0 ? (
-                    <div className="inline-flex items-center gap-1">
+                    <div className="relative inline-block" ref={attachmentsDropdownOpen === ticket.id ? dropdownRef : null}>
                       <button
-                        className="inline-flex items-center gap-1 text-primary hover:text-primary/80"
-                        onClick={() => router.push(`/tickets/${ticket.id}`)}
-                        title={`View ${ticket.attachment_count} attachment(s)`}
-                      >
-                        <Paperclip className="w-4 h-4" />
-                        <span className="text-xs font-medium">{ticket.attachment_count}</span>
-                      </button>
-                      <button
-                        className="p-1 text-primary hover:text-primary/80"
-                        onClick={() => router.push(`/tickets/${ticket.id}#attachments`)}
-                        title="View attachments"
+                        className="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
+                        onClick={() => toggleAttachmentsDropdown(ticket.id)}
+                        title={`Download ${ticket.attachment_count} attachment(s)`}
                       >
                         <Download className="w-3.5 h-3.5" />
+                        <span className="text-xs font-medium">{ticket.attachment_count}</span>
                       </button>
+
+                      {/* Attachments Dropdown */}
+                      {attachmentsDropdownOpen === ticket.id && (
+                        <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-border rounded-lg shadow-lg z-50">
+                          <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-surface/50">
+                            <span className="text-xs font-semibold text-foreground">Attachments</span>
+                            <button
+                              onClick={() => setAttachmentsDropdownOpen(null)}
+                              className="p-0.5 hover:bg-surface rounded"
+                            >
+                              <X className="w-3.5 h-3.5 text-muted-foreground" />
+                            </button>
+                          </div>
+                          <div className="max-h-48 overflow-y-auto">
+                            {loadingAttachments ? (
+                              <div className="p-3 text-center text-sm text-muted-foreground">
+                                Loading...
+                              </div>
+                            ) : attachmentsList.length > 0 ? (
+                              attachmentsList.map((attachment: any) => (
+                                <a
+                                  key={attachment.id}
+                                  href={attachment.file_url}
+                                  download={attachment.file_name}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 px-3 py-2 hover:bg-surface transition-colors border-b border-border last:border-b-0"
+                                >
+                                  <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-foreground truncate">{attachment.file_name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {attachment.file_size ? `${(attachment.file_size / 1024).toFixed(1)} KB` : ""}
+                                    </p>
+                                  </div>
+                                  <Download className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                                </a>
+                              ))
+                            ) : (
+                              <div className="p-3 text-center text-sm text-muted-foreground">
+                                No attachments found
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <span className="text-foreground-secondary">-</span>
