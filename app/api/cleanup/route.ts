@@ -1,5 +1,3 @@
-"use server"
-
 import { NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { DeleteObjectCommand } from "@aws-sdk/client-s3"
@@ -68,7 +66,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Update has_attachments flag for affected tickets
-    const affectedTicketIds = [...new Set(oldAttachments.map((a: any) => a.ticket_id))]
+    const affectedTicketIds = Array.from(new Set(oldAttachments.map((a: any) => a.ticket_id)))
 
     for (const ticketId of affectedTicketIds) {
       const remainingCount = await sql`
