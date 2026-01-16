@@ -26,7 +26,7 @@ export default function TicketsFilter({ onFilterChange }: TicketsFilterProps) {
       const userData = localStorage.getItem("user")
       if (userData) {
         const user = JSON.parse(userData)
-        setUserId(user.id)
+        setUserId(Number(user.id)) // Ensure ID is a number
       }
     } catch (e) {
       console.error("Failed to parse user data:", e)

@@ -87,10 +87,11 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
 
       // Filter tickets for SPOC users - show only tickets assigned to them as SPOC
       if (currentUser && currentUser.role?.toLowerCase() !== "admin") {
+        const userId = Number(currentUser.id) // Ensure ID is a number for comparison
         ticketsData = ticketsData.filter((ticket: Ticket) =>
-          ticket.spoc_user_id === currentUser.id ||
-          ticket.created_by === currentUser.id ||
-          ticket.assigned_to === currentUser.id
+          ticket.spoc_user_id === userId ||
+          ticket.created_by === userId ||
+          ticket.assigned_to === userId
         )
       }
 
@@ -155,8 +156,9 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
 
   const canEditAssignee = (ticket: Ticket) => {
     if (!currentUser) return false
+    const userId = Number(currentUser.id) // Ensure ID is a number for comparison
     return (
-      currentUser.id === ticket.spoc_user_id ||
+      userId === ticket.spoc_user_id ||
       currentUser.role?.toLowerCase() === "admin"
     )
   }
