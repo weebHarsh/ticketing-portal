@@ -113,7 +113,7 @@ export async function getAvailableUsersForMyTeam(userId: number) {
       )
     `
 
-    // Get all active users except the current user
+    // Get all users except the current user
     // Include a flag to indicate if they're already in the team
     const result = await sql`
       SELECT
@@ -131,7 +131,6 @@ export async function getAvailableUsersForMyTeam(userId: number) {
       LEFT JOIN business_unit_groups bug ON u.business_unit_group_id = bug.id
       LEFT JOIN my_team_members mtm ON mtm.member_user_id = u.id AND mtm.lead_user_id = ${userId}
       WHERE u.id != ${userId}
-        AND (u.is_active IS NULL OR u.is_active = TRUE)
       ORDER BY u.full_name ASC
     `
     return { success: true, data: result }
