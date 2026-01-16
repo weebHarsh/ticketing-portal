@@ -12,8 +12,14 @@ import {
   updateUserProfile,
   changeUserPassword,
 } from "@/lib/actions/users"
+import {
+  getMyTeamMembers,
+  addMyTeamMember,
+  removeMyTeamMember,
+} from "@/lib/actions/my-team"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import AddTeamMemberModal from "@/components/settings/add-team-member-modal"
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("my-group")
@@ -35,10 +41,17 @@ export default function SettingsPage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false)
 
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    if (activeTab === "my-team" && currentUser?.id) {
+      loadTeamMembers()
+    }
+  }, [activeTab, currentUser])
 
   const loadData = async () => {
     setLoading(true)
@@ -51,32 +64,64 @@ export default function SettingsPage() {
         setSelectedBusinessGroup(user.business_unit_group_id || "")
       }
 
-      const [buResult, usersResult] = await Promise.all([
+      const [buResult] = await Promise.all([
         getBusinessUnitGroups(),
-        getUsers(),
       ])
 
       if (buResult.success) {
         setBusinessGroups(buResult.data || [])
       }
-
-      if (usersResult.success) {
-        const users = usersResult.data || []
-        setAllUsers(users)
-
-        // Group users by their business unit group
-        const mappedMembers = users.map((user: any) => ({
-          id: user.id,
-          name: user.name || user.full_name,
-          email: user.email,
-          group: user.group_name || "No Group"
-        }))
-        setTeamMembers(mappedMembers)
-      }
     } catch (error) {
       console.error("Failed to load data:", error)
     }
     setLoading(false)
+  }
+
+  const loadTeamMembers = async () => {
+    if (!currentUser?.id) return
+
+    try {
+      const result = await getMyTeamMembers(currentUser.id)
+      if (result.success && result.data) {
+        // Group users by their business unit group
+        const mappedMembers = result.data.map((user: any) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          group: user.group_name || "No Group",
+          team_member_id: user.team_member_id,
+        }))
+        setTeamMembers(mappedMembers)
+      }
+    } catch (error) {
+      console.error("Failed to load team members:", error)
+    }
+  }
+
+  const handleAddTeamMember = async (userId: number) => {
+    if (!currentUser?.id) return
+
+    const result = await addMyTeamMember(currentUser.id, userId)
+    if (result.success) {
+      await loadTeamMembers()
+    } else {
+      alert(result.error || "Failed to add team member")
+    }
+  }
+
+  const handleRemoveTeamMember = async (teamMemberId: number) => {
+    if (!currentUser?.id) return
+
+    if (!confirm("Are you sure you want to remove this team member?")) {
+      return
+    }
+
+    const result = await removeMyTeamMember(currentUser.id, teamMemberId)
+    if (result.success) {
+      await loadTeamMembers()
+    } else {
+      alert(result.error || "Failed to remove team member")
+    }
   }
 
   const handleSaveBusinessGroup = async () => {
@@ -280,7 +325,7 @@ export default function SettingsPage() {
                     <p className="text-sm text-muted-foreground mt-0.5">Manage your team members</p>
                   </div>
                 </div>
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" onClick={() => setShowAddMemberModal(true)}>
                   <UserPlus className="w-4 h-4 mr-2" />
                   Add User
                 </Button>
@@ -312,6 +357,7 @@ export default function SettingsPage() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              onClick={() => handleRemoveTeamMember(member.team_member_id)}
                               className="opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -503,6 +549,14 @@ export default function SettingsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Add Team Member Modal */}
+      <AddTeamMemberModal
+        isOpen={showAddMemberModal}
+        onClose={() => setShowAddMemberModal(false)}
+        onAdd={handleAddTeamMember}
+        currentUserId={currentUser?.id || 0}
+      />
     </DashboardLayout>
   )
 }
