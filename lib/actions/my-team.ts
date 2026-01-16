@@ -102,6 +102,17 @@ export async function removeMyTeamMember(leadUserId: number, teamMemberId: numbe
 
 export async function getAvailableUsersForMyTeam(userId: number) {
   try {
+    // Ensure table exists first
+    await sql`
+      CREATE TABLE IF NOT EXISTS my_team_members (
+        id SERIAL PRIMARY KEY,
+        lead_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        member_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(lead_user_id, member_user_id)
+      )
+    `
+
     // Get all active users except the current user
     // Include a flag to indicate if they're already in the team
     const result = await sql`
