@@ -11,6 +11,7 @@ import {
   updateTicketAssignee,
   getUsers,
 } from "@/lib/actions/tickets"
+import { getMyTeamMembers } from "@/lib/actions/my-team"
 import * as XLSX from "xlsx"
 import AssigneeModal from "./assignee-modal"
 
@@ -106,14 +107,36 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
     if (result.success) {
       let ticketsData = result.data
 
-      // Filter tickets for SPOC users - show only tickets assigned to them as SPOC
+      // Filter tickets based on user role and team settings
       if (currentUser && currentUser.role?.toLowerCase() !== "admin") {
-        const userId = Number(currentUser.id) // Ensure ID is a number for comparison
-        ticketsData = ticketsData.filter((ticket: Ticket) =>
-          ticket.spoc_user_id === userId ||
-          ticket.created_by === userId ||
-          ticket.assigned_to === userId
-        )
+        const userId = Number(currentUser.id)
+
+        // If "My Team" filter is active, include team members' tickets
+        if (filters?.myTeam) {
+          // Fetch team members
+          const teamResult = await getMyTeamMembers(userId)
+          const teamMemberIds = teamResult.success && teamResult.data
+            ? teamResult.data.map((m: any) => Number(m.id))
+            : []
+
+          // Include tickets where:
+          // - User is SPOC, creator, or assignee
+          // - OR team members are creator or assignee
+          ticketsData = ticketsData.filter((ticket: Ticket) =>
+            ticket.spoc_user_id === userId ||
+            ticket.created_by === userId ||
+            ticket.assigned_to === userId ||
+            teamMemberIds.includes(ticket.created_by) ||
+            teamMemberIds.includes(ticket.assigned_to || 0)
+          )
+        } else {
+          // Default: show only user's own tickets
+          ticketsData = ticketsData.filter((ticket: Ticket) =>
+            ticket.spoc_user_id === userId ||
+            ticket.created_by === userId ||
+            ticket.assigned_to === userId
+          )
+        }
       }
 
       setTickets(ticketsData)
