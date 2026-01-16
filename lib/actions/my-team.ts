@@ -102,7 +102,8 @@ export async function removeMyTeamMember(leadUserId: number, teamMemberId: numbe
 
 export async function getAvailableUsersForMyTeam(userId: number) {
   try {
-    // Get all active users except the current user and those already in their team
+    // Get all active users except the current user
+    // Include a flag to indicate if they're already in the team
     const result = await sql`
       SELECT
         u.id,
@@ -110,16 +111,16 @@ export async function getAvailableUsersForMyTeam(userId: number) {
         u.email,
         u.business_unit_group_id,
         bug.name as group_name,
-        u.role
+        u.role,
+        CASE
+          WHEN mtm.id IS NOT NULL THEN true
+          ELSE false
+        END as is_in_team
       FROM users u
       LEFT JOIN business_unit_groups bug ON u.business_unit_group_id = bug.id
+      LEFT JOIN my_team_members mtm ON mtm.member_user_id = u.id AND mtm.lead_user_id = ${userId}
       WHERE u.id != ${userId}
         AND (u.is_active IS NULL OR u.is_active = TRUE)
-        AND u.id NOT IN (
-          SELECT member_user_id
-          FROM my_team_members
-          WHERE lead_user_id = ${userId}
-        )
       ORDER BY u.full_name ASC
     `
     return { success: true, data: result }

@@ -17,6 +17,7 @@ interface User {
   email: string
   group_name?: string
   role?: string
+  is_in_team?: boolean
 }
 
 export default function AddTeamMemberModal({
@@ -58,8 +59,8 @@ export default function AddTeamMemberModal({
     setAdding(true)
     try {
       await onAdd(userId)
-      // Remove the added user from the list
-      setUsers((prev) => prev.filter((u) => u.id !== userId))
+      // Reload the user list to update the is_in_team flag
+      await loadUsers()
     } finally {
       setAdding(false)
     }
@@ -112,16 +113,18 @@ export default function AddTeamMemberModal({
           ) : filteredUsers.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
               <User className="w-8 h-8 mb-2 opacity-50" />
-              <p className="text-sm">
-                {searchTerm ? "No users found" : "All users are already in your team"}
-              </p>
+              <p className="text-sm">No users found</p>
             </div>
           ) : (
             <div className="space-y-1">
               {filteredUsers.map((user) => (
                 <div
                   key={user.id}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-surface transition-colors border border-transparent hover:border-border"
+                  className={`flex items-center gap-3 p-3 rounded-lg transition-colors border ${
+                    user.is_in_team
+                      ? "bg-green-50 border-green-200"
+                      : "hover:bg-surface border-transparent hover:border-border"
+                  }`}
                 >
                   <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center text-white font-medium text-sm">
                     {user.name
@@ -141,13 +144,20 @@ export default function AddTeamMemberModal({
                       </p>
                     )}
                   </div>
-                  <button
-                    onClick={() => handleAdd(user.id)}
-                    disabled={adding}
-                    className="px-3 py-1.5 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-primary hover:text-white transition-colors disabled:opacity-50"
-                  >
-                    Add
-                  </button>
+                  {user.is_in_team ? (
+                    <div className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-100 rounded-lg">
+                      <User className="w-3.5 h-3.5" />
+                      Added
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleAdd(user.id)}
+                      disabled={adding}
+                      className="px-3 py-1.5 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-primary hover:text-white transition-colors disabled:opacity-50"
+                    >
+                      Add
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
