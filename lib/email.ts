@@ -1,10 +1,18 @@
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 
-// Initialize Resend - will be null if API key not configured
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+// Initialize nodemailer transporter with Gmail SMTP
+const transporter = process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD
+  ? nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD,
+      },
+    })
+  : null
 
-// Default sender email (must be verified in Resend or use onboarding@resend.dev for testing)
-const FROM_EMAIL = process.env.FROM_EMAIL || 'Ticket Portal <onboarding@resend.dev>'
+// Default sender email
+const FROM_EMAIL = process.env.FROM_EMAIL || process.env.GMAIL_USER || 'Ticket Portal <noreply@example.com>'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:4000'
 
 interface EmailResult {
@@ -209,15 +217,15 @@ export async function sendAssignmentEmail(data: {
   priority?: string
   assignedByName: string
 }): Promise<EmailResult> {
-  if (!resend) {
-    console.log('[Email] Resend not configured - skipping assignment email')
+  if (!transporter) {
+    console.log('[Email] Gmail SMTP not configured - skipping assignment email')
     return { success: true } // Don't fail if email not configured
   }
 
   try {
     const ticketUrl = `${APP_URL}/tickets/${data.ticketDbId}`
 
-    const { error } = await resend.emails.send({
+    await transporter.sendMail({
       from: FROM_EMAIL,
       to: data.assigneeEmail,
       subject: `[${data.ticketId}] Ticket Assigned: ${data.ticketTitle}`,
@@ -232,16 +240,11 @@ export async function sendAssignmentEmail(data: {
       }),
     })
 
-    if (error) {
-      console.error('[Email] Failed to send assignment email:', error)
-      return { success: false, error: error.message }
-    }
-
     console.log(`[Email] Assignment email sent to ${data.assigneeEmail}`)
     return { success: true }
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Email] Error sending assignment email:', error)
-    return { success: false, error: 'Failed to send email' }
+    return { success: false, error: error.message || 'Failed to send email' }
   }
 }
 
@@ -256,15 +259,15 @@ export async function sendSpocNotificationEmail(data: {
   creatorName: string
   creatorGroup: string
 }): Promise<EmailResult> {
-  if (!resend) {
-    console.log('[Email] Resend not configured - skipping SPOC notification email')
+  if (!transporter) {
+    console.log('[Email] Gmail SMTP not configured - skipping SPOC notification email')
     return { success: true }
   }
 
   try {
     const ticketUrl = `${APP_URL}/tickets/${data.ticketDbId}`
 
-    const { error } = await resend.emails.send({
+    await transporter.sendMail({
       from: FROM_EMAIL,
       to: data.spocEmail,
       subject: `[${data.ticketId}] New Ticket: ${data.ticketTitle}`,
@@ -279,16 +282,11 @@ export async function sendSpocNotificationEmail(data: {
       }),
     })
 
-    if (error) {
-      console.error('[Email] Failed to send SPOC notification email:', error)
-      return { success: false, error: error.message }
-    }
-
     console.log(`[Email] SPOC notification email sent to ${data.spocEmail}`)
     return { success: true }
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Email] Error sending SPOC notification email:', error)
-    return { success: false, error: 'Failed to send email' }
+    return { success: false, error: error.message || 'Failed to send email' }
   }
 }
 
@@ -303,15 +301,15 @@ export async function sendStatusChangeEmail(data: {
   newStatus: string
   changedByName: string
 }): Promise<EmailResult> {
-  if (!resend) {
-    console.log('[Email] Resend not configured - skipping status change email')
+  if (!transporter) {
+    console.log('[Email] Gmail SMTP not configured - skipping status change email')
     return { success: true }
   }
 
   try {
     const ticketUrl = `${APP_URL}/tickets/${data.ticketDbId}`
 
-    const { error } = await resend.emails.send({
+    await transporter.sendMail({
       from: FROM_EMAIL,
       to: data.recipientEmail,
       subject: `[${data.ticketId}] Status Changed to ${data.newStatus.toUpperCase()}`,
@@ -326,15 +324,10 @@ export async function sendStatusChangeEmail(data: {
       }),
     })
 
-    if (error) {
-      console.error('[Email] Failed to send status change email:', error)
-      return { success: false, error: error.message }
-    }
-
     console.log(`[Email] Status change email sent to ${data.recipientEmail}`)
     return { success: true }
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Email] Error sending status change email:', error)
-    return { success: false, error: 'Failed to send email' }
+    return { success: false, error: error.message || 'Failed to send email' }
   }
 }
