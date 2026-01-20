@@ -58,9 +58,10 @@ interface TicketsTableProps {
     myTeam?: boolean
     userId?: number
   }
+  onExportReady?: (exportFn: () => void) => void
 }
 
-export default function TicketsTable({ filters }: TicketsTableProps) {
+export default function TicketsTable({ filters, onExportReady }: TicketsTableProps) {
   const router = useRouter()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [users, setUsers] = useState<User[]>([])
@@ -103,6 +104,13 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
     loadTickets()
     loadUsers()
   }, [filters, currentUser])
+
+  // Expose export function to parent
+  useEffect(() => {
+    if (onExportReady) {
+      onExportReady(handleExport)
+    }
+  }, [tickets])
 
   const loadTickets = async () => {
     setIsLoading(true)
@@ -320,55 +328,44 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
 
   return (
     <div className="bg-white border border-border rounded-xl overflow-hidden">
-      {/* Export Button */}
-      <div className="flex justify-end p-4 border-b border-border">
-        <button
-          onClick={handleExport}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
-        >
-          <FileDown className="w-4 h-4" />
-          Export to Excel
-        </button>
-      </div>
-
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-surface border-b border-border">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider w-12">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-foreground tracking-wider w-12">
                 #
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-foreground tracking-wider">
                 Initiator
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-foreground tracking-wider">
                 Date
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
-                Type
+              <th className="px-4 py-3 text-left text-sm font-semibold text-foreground tracking-wider">
+                Tkt ID
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
-                Ticket ID
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-foreground tracking-wider">
                 Category
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-foreground tracking-wider">
                 Project / Release
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider max-w-xs">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-foreground tracking-wider max-w-xs">
                 Description
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider w-[200px]">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-foreground tracking-wider">
+                SPOC
+              </th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-foreground tracking-wider w-[200px]">
                 Assignee
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-foreground tracking-wider">
                 Status
               </th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-foreground uppercase tracking-wider w-20">
+              <th className="px-4 py-3 text-center text-sm font-semibold text-foreground tracking-wider w-20">
                 Files
               </th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-foreground uppercase tracking-wider w-28">
+              <th className="px-4 py-3 text-center text-sm font-semibold text-foreground tracking-wider w-28">
                 Actions
               </th>
             </tr>
@@ -382,15 +379,15 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                 }`}
               >
                 {/* Row Number */}
-                <td className="px-4 py-3 text-sm text-foreground-secondary">{index + 1}</td>
+                <td className="px-4 py-3 text-base text-foreground-secondary">{index + 1}</td>
 
                 {/* Initiator Name and Group Stacked */}
                 <td className="px-4 py-3">
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-foreground">
+                    <span className="text-base font-medium text-foreground">
                       {ticket.creator_name || "Unknown"}
                     </span>
-                    <span className="text-xs text-foreground-secondary">
+                    <span className="text-sm text-foreground-secondary">
                       {ticket.group_name || "No Group"}
                     </span>
                   </div>
@@ -399,37 +396,35 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                 {/* Date Stacked */}
                 <td className="px-4 py-3">
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-foreground">
+                    <span className="text-base font-medium text-foreground">
                       {format(new Date(ticket.created_at), "MMM dd, yyyy")}
                     </span>
-                    <span className="text-xs text-foreground-secondary">
+                    <span className="text-sm text-foreground-secondary">
                       {format(new Date(ticket.created_at), "hh:mm a")}
                     </span>
                   </div>
                 </td>
 
-                {/* Type */}
+                {/* Ticket ID and Type Stacked */}
                 <td className="px-4 py-3">
-                  <span className="text-sm text-foreground capitalize">
-                    {ticket.ticket_type}
-                  </span>
-                </td>
-
-                {/* Ticket ID */}
-                <td className="px-4 py-3">
-                  <span className="text-sm font-medium text-primary">
-                    {ticket.id}
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-base font-medium text-primary">
+                      {ticket.ticket_id}
+                    </span>
+                    <span className="text-sm text-foreground-secondary capitalize">
+                      {ticket.ticket_type}
+                    </span>
+                  </div>
                 </td>
 
                 {/* Category/Subcategory Stacked */}
                 <td className="px-4 py-3">
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-foreground">
+                    <span className="text-base font-medium text-foreground">
                       {ticket.category_name || "N/A"}
                     </span>
                     {ticket.subcategory_name && (
-                      <span className="text-xs text-foreground-secondary">
+                      <span className="text-sm text-foreground-secondary">
                         {ticket.subcategory_name}
                       </span>
                     )}
@@ -441,75 +436,75 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                   {ticket.project_name || ticket.estimated_release_date ? (
                     <div className="flex flex-col">
                       {ticket.project_name && (
-                        <span className="text-sm font-medium text-foreground">
+                        <span className="text-base font-medium text-foreground">
                           {ticket.project_name}
                         </span>
                       )}
                       {ticket.estimated_release_date && (
-                        <span className="text-xs text-foreground-secondary">
+                        <span className="text-sm text-foreground-secondary">
                           {format(new Date(ticket.estimated_release_date), "MMM dd, yyyy")}
                         </span>
                       )}
                     </div>
                   ) : (
-                    <span className="text-sm text-muted-foreground">-</span>
+                    <span className="text-base text-muted-foreground">-</span>
                   )}
                 </td>
 
-                {/* Description Truncated */}
+                {/* Description Truncated with Tooltip */}
                 <td className="px-4 py-3">
                   <p
-                    className="text-sm text-foreground max-w-xs truncate cursor-pointer hover:text-primary"
+                    className="text-base text-foreground max-w-xs truncate cursor-pointer hover:text-primary"
                     onClick={() => router.push(`/tickets/${ticket.id}`)}
                     title={ticket.description || ticket.title}
                   >
                     {ticket.description || ticket.title}
                   </p>
                   {ticket.is_deleted && (
-                    <span className="text-xs text-red-600">(Deleted)</span>
+                    <span className="text-sm text-red-600">(Deleted)</span>
                   )}
                 </td>
 
-                {/* Assignee and SPOC Combined (2-line) */}
+                {/* SPOC Column */}
+                <td className="px-4 py-3">
+                  <span className="text-base text-foreground">
+                    {ticket.spoc_name || "-"}
+                  </span>
+                </td>
+
+                {/* Assignee Column */}
                 <td className="px-4 py-3 w-[200px]">
-                  <div className="flex flex-col gap-1">
-                    {/* Assignee - Clickable button for SPOCs/Admins */}
-                    {ticket.assignee_name ? (
-                      <span
-                        className={`text-sm font-medium text-foreground ${
-                          canEditAssignee(ticket)
-                            ? "cursor-pointer hover:text-primary"
-                            : ""
-                        }`}
-                        onClick={() => canEditAssignee(ticket) && openAssigneeModal(ticket)}
-                      >
-                        {ticket.assignee_name}
-                        {canEditAssignee(ticket) && (
-                          <Edit className="w-3 h-3 inline ml-1 opacity-50" />
-                        )}
-                      </span>
-                    ) : canEditAssignee(ticket) ? (
-                      <button
-                        onClick={() => openAssigneeModal(ticket)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-700 rounded-md text-sm font-medium hover:bg-amber-200 transition-colors w-fit"
-                      >
-                        <UserPlus className="w-3.5 h-3.5" />
-                        Assign
-                      </button>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">Unassigned</span>
-                    )}
-                    {/* SPOC */}
-                    <span className="text-xs text-foreground-secondary">
-                      SPOC: {ticket.spoc_name || "-"}
+                  {ticket.assignee_name ? (
+                    <span
+                      className={`text-base font-medium text-foreground ${
+                        canEditAssignee(ticket)
+                          ? "cursor-pointer hover:text-primary"
+                          : ""
+                      }`}
+                      onClick={() => canEditAssignee(ticket) && openAssigneeModal(ticket)}
+                    >
+                      {ticket.assignee_name}
+                      {canEditAssignee(ticket) && (
+                        <Edit className="w-4 h-4 inline ml-1 opacity-50" />
+                      )}
                     </span>
-                  </div>
+                  ) : canEditAssignee(ticket) ? (
+                    <button
+                      onClick={() => openAssigneeModal(ticket)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-md text-base font-medium hover:bg-amber-200 transition-colors w-fit"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Assign
+                    </button>
+                  ) : (
+                    <span className="text-base text-muted-foreground">Unassigned</span>
+                  )}
                 </td>
 
                 {/* Status Badge */}
                 <td className="px-4 py-3">
                   <span
-                    className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
+                    className={`inline-flex px-3 py-1.5 rounded-full text-sm font-medium ${
                       statusColor[ticket.status] || statusColor["open"]
                     }`}
                   >
@@ -522,12 +517,12 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                   {ticket.attachment_count > 0 ? (
                     <div className="relative inline-block" ref={attachmentsDropdownOpen === ticket.id ? dropdownRef : null}>
                       <button
-                        className="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
                         onClick={() => toggleAttachmentsDropdown(ticket.id)}
                         title={`Download ${ticket.attachment_count} attachment(s)`}
                       >
-                        <Download className="w-3.5 h-3.5" />
-                        <span className="text-xs font-medium">{ticket.attachment_count}</span>
+                        <Download className="w-4 h-4" />
+                        <span className="text-sm font-medium">{ticket.attachment_count}</span>
                       </button>
 
                       {/* Attachments Dropdown */}

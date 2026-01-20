@@ -13,12 +13,17 @@ export default function TicketsPage() {
   const searchParams = useSearchParams()
   const [showSuccess, setShowSuccess] = useState(!!searchParams.get("created"))
   const [filters, setFilters] = useState({})
+  const [exportFn, setExportFn] = useState<(() => void) | null>(null)
 
   useEffect(() => {
     if (showSuccess) {
       setTimeout(() => setShowSuccess(false), 3000)
     }
   }, [showSuccess])
+
+  const handleExportReady = (fn: () => void) => {
+    setExportFn(() => fn)
+  }
 
   return (
     <DashboardLayout>
@@ -30,8 +35,8 @@ export default function TicketsPage() {
           </div>
         )}
         <TicketsHeader />
-        <TicketsFilter onFilterChange={setFilters} />
-        <TicketsTable filters={filters} />
+        <TicketsFilter onFilterChange={setFilters} onExport={exportFn || undefined} />
+        <TicketsTable filters={filters} onExportReady={handleExportReady} />
       </div>
     </DashboardLayout>
   )

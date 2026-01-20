@@ -1,13 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Filter, Users, X } from "lucide-react"
+import { Search, Filter, Users, X, FileDown } from "lucide-react"
 
 interface TicketsFilterProps {
   onFilterChange: (filters: any) => void
+  onExport?: () => void
 }
 
-export default function TicketsFilter({ onFilterChange }: TicketsFilterProps) {
+export default function TicketsFilter({ onFilterChange, onExport }: TicketsFilterProps) {
   const [showFilters, setShowFilters] = useState(false)
   const [userId, setUserId] = useState<number | null>(null)
   const [filters, setFilters] = useState({
@@ -112,6 +113,17 @@ export default function TicketsFilter({ onFilterChange }: TicketsFilterProps) {
             )}
           </div>
         </form>
+
+        {/* Export Button */}
+        {onExport && (
+          <button
+            onClick={onExport}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap bg-green-600 text-white hover:bg-green-700"
+          >
+            <FileDown className="w-4 h-4" />
+            Export
+          </button>
+        )}
 
         {/* My Team Toggle */}
         <button
