@@ -35,8 +35,8 @@ export default function BusinessUnitGroupsTab() {
     loadData()
   }, [])
 
-  const handleCreate = async (name: string, description?: string) => {
-    const result = await createBusinessUnitGroup(name, description)
+  const handleCreate = async (name: string, description?: string, spocName?: string) => {
+    const result = await createBusinessUnitGroup(name, description, spocName)
     if (result.success) {
       await loadData()
       return true
@@ -44,8 +44,8 @@ export default function BusinessUnitGroupsTab() {
     return false
   }
 
-  const handleUpdate = async (id: number, name: string, description?: string) => {
-    const result = await updateBusinessUnitGroup(id, name, description)
+  const handleUpdate = async (id: number, name: string, description?: string, spocName?: string) => {
+    const result = await updateBusinessUnitGroup(id, name, description, spocName)
     if (result.success) {
       await loadData()
       setEditItem(null)
@@ -104,7 +104,7 @@ export default function BusinessUnitGroupsTab() {
           </Button>
           <Button
             size="sm"
-            onClick={() => setEditItem({ id: null, name: "", description: "" })}
+            onClick={() => setEditItem({ id: null, name: "", description: "", spoc_name: "" })}
             className="bg-gradient-to-r from-primary to-secondary"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -119,6 +119,7 @@ export default function BusinessUnitGroupsTab() {
             <tr className="border-b border-border">
               <th className="text-left py-3 px-4 font-semibold">Name</th>
               <th className="text-left py-3 px-4 font-semibold">Description</th>
+              <th className="text-left py-3 px-4 font-semibold">SPOC Name</th>
               <th className="text-right py-3 px-4 font-semibold">Actions</th>
             </tr>
           </thead>
@@ -128,6 +129,7 @@ export default function BusinessUnitGroupsTab() {
                 <tr key={item.id} className="border-b border-border hover:bg-surface">
                   <td className="py-3 px-4">{item.name}</td>
                   <td className="py-3 px-4 text-foreground-secondary">{item.description || "-"}</td>
+                  <td className="py-3 px-4">{item.spoc_name || "-"}</td>
                   <td className="py-3 px-4 text-right">
                     <div className="flex gap-2 justify-end">
                       <Button variant="ghost" size="sm" onClick={() => setEditItem(item)}>
@@ -142,7 +144,7 @@ export default function BusinessUnitGroupsTab() {
               ))
             ) : (
               <tr>
-                <td colSpan={3} className="py-6 text-center text-foreground-secondary">
+                <td colSpan={4} className="py-6 text-center text-foreground-secondary">
                   No groups found. Click "Add New" to create one.
                 </td>
               </tr>
@@ -166,12 +168,13 @@ export default function BusinessUnitGroupsTab() {
           fields={[
             { name: "name", label: "Name", type: "text", required: true },
             { name: "description", label: "Description", type: "textarea" },
+            { name: "spoc_name", label: "SPOC Name", type: "text" },
           ]}
           initialData={editItem}
           onSave={(data) =>
             editItem.id
-              ? handleUpdate(editItem.id, data.name, data.description)
-              : handleCreate(data.name, data.description)
+              ? handleUpdate(editItem.id, data.name, data.description, data.spoc_name)
+              : handleCreate(data.name, data.description, data.spoc_name)
           }
           onClose={() => setEditItem(null)}
         />

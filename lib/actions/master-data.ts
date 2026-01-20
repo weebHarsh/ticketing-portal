@@ -16,12 +16,12 @@ export async function getBusinessUnitGroups() {
   }
 }
 
-export async function createBusinessUnitGroup(name: string, description?: string) {
+export async function createBusinessUnitGroup(name: string, description?: string, spocName?: string) {
   try {
     const trimmedName = name.trim()
     const result = await sql`
-      INSERT INTO business_unit_groups (name, description)
-      VALUES (${trimmedName}, ${description || null})
+      INSERT INTO business_unit_groups (name, description, spoc_name)
+      VALUES (${trimmedName}, ${description || null}, ${spocName || null})
       RETURNING *
     `
     if (!result || result.length === 0) {
@@ -37,12 +37,12 @@ export async function createBusinessUnitGroup(name: string, description?: string
   }
 }
 
-export async function updateBusinessUnitGroup(id: number, name: string, description?: string) {
+export async function updateBusinessUnitGroup(id: number, name: string, description?: string, spocName?: string) {
   try {
     const trimmedName = name.trim()
     const result = await sql`
-      UPDATE business_unit_groups 
-      SET name = ${trimmedName}, description = ${description || null}, updated_at = CURRENT_TIMESTAMP
+      UPDATE business_unit_groups
+      SET name = ${trimmedName}, description = ${description || null}, spoc_name = ${spocName || null}, updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
       RETURNING *
     `
@@ -478,6 +478,73 @@ export async function getProjects(businessUnitGroupId?: number) {
   } catch (error) {
     console.error("Error fetching projects:", error)
     return { success: false, error: "Failed to fetch projects", data: [] }
+  }
+}
+
+// Project Names (for release planning)
+export async function getProjectNames() {
+  try {
+    const result = await sql`
+      SELECT * FROM projects
+      ORDER BY name ASC
+    `
+    return { success: true, data: result }
+  } catch (error) {
+    console.error("Error fetching project names:", error)
+    return { success: false, error: "Failed to fetch project names", data: [] }
+  }
+}
+
+export async function createProjectName(name: string, estimatedReleaseDate?: string) {
+  try {
+    const trimmedName = name.trim()
+    const result = await sql`
+      INSERT INTO projects (name, estimated_release_date)
+      VALUES (${trimmedName}, ${estimatedReleaseDate || null})
+      RETURNING *
+    `
+    if (!result || result.length === 0) {
+      return { success: false, error: "Failed to create project - no data returned" }
+    }
+    return { success: true, data: result[0] }
+  } catch (error: any) {
+    if (error.message?.includes("duplicate key") || error.detail?.includes("already exists")) {
+      return { success: false, error: `Project with this name already exists`, isDuplicate: true }
+    }
+    console.error("Error creating project:", error)
+    return { success: false, error: "Failed to create project" }
+  }
+}
+
+export async function updateProjectName(id: number, name: string, estimatedReleaseDate?: string) {
+  try {
+    const trimmedName = name.trim()
+    const result = await sql`
+      UPDATE projects
+      SET name = ${trimmedName}, estimated_release_date = ${estimatedReleaseDate || null}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${id}
+      RETURNING *
+    `
+    if (!result || result.length === 0) {
+      return { success: false, error: "Failed to update project - no data returned" }
+    }
+    return { success: true, data: result[0] }
+  } catch (error: any) {
+    if (error.message?.includes("duplicate key") || error.detail?.includes("already exists")) {
+      return { success: false, error: `Project with this name already exists`, isDuplicate: true }
+    }
+    console.error("Error updating project:", error)
+    return { success: false, error: "Failed to update project" }
+  }
+}
+
+export async function deleteProjectName(id: number) {
+  try {
+    await sql`DELETE FROM projects WHERE id = ${id}`
+    return { success: true }
+  } catch (error) {
+    console.error("Error deleting project:", error)
+    return { success: false, error: "Failed to delete project" }
   }
 }
 

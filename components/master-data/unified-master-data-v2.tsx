@@ -24,6 +24,7 @@ import {
 } from "@/lib/actions/master-data"
 import { getUsers } from "@/lib/actions/tickets"
 import EditDialog from "./edit-dialog"
+import ProjectNamesTab from "./project-names-tab"
 
 export default function UnifiedMasterDataV2() {
   const [activeTab, setActiveTab] = useState("business-groups")
@@ -87,8 +88,8 @@ export default function UnifiedMasterDataV2() {
   }
 
   // Business Group handlers
-  const handleCreateBG = async (name: string, description?: string) => {
-    const result = await createBusinessUnitGroup(name, description)
+  const handleCreateBG = async (name: string, description?: string, spocName?: string) => {
+    const result = await createBusinessUnitGroup(name, description, spocName)
     if (result.success) {
       await loadData()
       return true
@@ -96,8 +97,8 @@ export default function UnifiedMasterDataV2() {
     return false
   }
 
-  const handleUpdateBG = async (id: number, name: string, description?: string) => {
-    const result = await updateBusinessUnitGroup(id, name, description)
+  const handleUpdateBG = async (id: number, name: string, description?: string, spocName?: string) => {
+    const result = await updateBusinessUnitGroup(id, name, description, spocName)
     if (result.success) {
       await loadData()
       setEditBG(null)
@@ -221,9 +222,10 @@ export default function UnifiedMasterDataV2() {
   return (
     <div className="bg-white border border-border rounded-xl p-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="business-groups">Business Groups</TabsTrigger>
           <TabsTrigger value="categories">Categories & Classification</TabsTrigger>
+          <TabsTrigger value="project-names">Project Names</TabsTrigger>
         </TabsList>
 
         {/* Business Groups Tab */}
@@ -237,7 +239,7 @@ export default function UnifiedMasterDataV2() {
             </div>
             <Button
               size="sm"
-              onClick={() => setEditBG({ id: null, name: "", description: "" })}
+              onClick={() => setEditBG({ id: null, name: "", description: "", spoc_name: "" })}
               className="bg-gradient-to-r from-primary to-secondary"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -259,6 +261,7 @@ export default function UnifiedMasterDataV2() {
                   <div>
                     <h3 className="font-semibold text-foreground">{bg.name}</h3>
                     {bg.description && <p className="text-sm text-foreground-secondary">{bg.description}</p>}
+                    {bg.spoc_name && <p className="text-sm text-primary">SPOC: {bg.spoc_name}</p>}
                   </div>
                   <div className="flex gap-2">
                     <Button variant="ghost" size="sm" onClick={() => setEditBG(bg)}>
@@ -467,6 +470,11 @@ export default function UnifiedMasterDataV2() {
             )}
           </div>
         </TabsContent>
+
+        {/* Project Names Tab */}
+        <TabsContent value="project-names" className="mt-6">
+          <ProjectNamesTab />
+        </TabsContent>
       </Tabs>
 
       {/* Edit Dialogs */}
@@ -476,10 +484,11 @@ export default function UnifiedMasterDataV2() {
           fields={[
             { name: "name", label: "Name", type: "text", required: true },
             { name: "description", label: "Description", type: "textarea" },
+            { name: "spoc_name", label: "SPOC Name", type: "text" },
           ]}
           initialData={editBG}
           onSave={(data) =>
-            editBG.id ? handleUpdateBG(editBG.id, data.name, data.description) : handleCreateBG(data.name, data.description)
+            editBG.id ? handleUpdateBG(editBG.id, data.name, data.description, data.spoc_name) : handleCreateBG(data.name, data.description, data.spoc_name)
           }
           onClose={() => setEditBG(null)}
         />
