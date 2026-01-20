@@ -36,6 +36,9 @@ interface Ticket {
   attachment_count: number
   business_unit_group_id: number
   group_name: string | null
+  project_id: number | null
+  project_name: string | null
+  estimated_release_date: string | null
 }
 
 interface User {
@@ -253,6 +256,10 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
       "Ticket ID": ticket.ticket_id,
       "Category": ticket.category_name || "N/A",
       "Subcategory": ticket.subcategory_name || "-",
+      "Project": ticket.project_name || "-",
+      "Release Date": ticket.estimated_release_date
+        ? format(new Date(ticket.estimated_release_date), "MMM dd, yyyy")
+        : "-",
       "Description": ticket.description || ticket.title,
       "Assignee": ticket.assignee_name || "Unassigned",
       "SPOC": ticket.spoc_name || "-",
@@ -275,6 +282,8 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
       { wch: 15 }, // Ticket ID
       { wch: 20 }, // Category
       { wch: 20 }, // Subcategory
+      { wch: 20 }, // Project
+      { wch: 15 }, // Release Date
       { wch: 40 }, // Description
       { wch: 20 }, // Assignee
       { wch: 15 }, // SPOC
@@ -343,6 +352,9 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
                 Category
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+                Project / Release
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider max-w-xs">
                 Description
@@ -422,6 +434,26 @@ export default function TicketsTable({ filters }: TicketsTableProps) {
                       </span>
                     )}
                   </div>
+                </td>
+
+                {/* Project/Release Stacked */}
+                <td className="px-4 py-3">
+                  {ticket.project_name || ticket.estimated_release_date ? (
+                    <div className="flex flex-col">
+                      {ticket.project_name && (
+                        <span className="text-sm font-medium text-foreground">
+                          {ticket.project_name}
+                        </span>
+                      )}
+                      {ticket.estimated_release_date && (
+                        <span className="text-xs text-foreground-secondary">
+                          {format(new Date(ticket.estimated_release_date), "MMM dd, yyyy")}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">-</span>
+                  )}
                 </td>
 
                 {/* Description Truncated */}

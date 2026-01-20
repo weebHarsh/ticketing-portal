@@ -12,15 +12,17 @@ import {
   getBusinessUnitGroups,
   getCategories,
   getSubcategories,
-  getProjects,
+  getProjectNames,
   getProductReleases,
+  getAutoTitleTemplate,
 } from "@/lib/actions/master-data"
 import { Combobox } from "@/components/ui/combobox"
 
 interface FormData {
   ticketType: "support" | "requirement"
   businessUnitGroupId: string
-  projectName: string
+  projectId: string
+  estimatedReleaseDate: string
   categoryId: string
   subcategoryId: string
   description: string
@@ -38,7 +40,8 @@ export default function CreateTicketForm() {
   const [formData, setFormData] = useState<FormData>({
     ticketType: (searchParams.get("ticketType") as "support" | "requirement") || "support",
     businessUnitGroupId: searchParams.get("businessUnitGroupId") || "",
-    projectName: searchParams.get("projectName") || "",
+    projectId: searchParams.get("projectId") || "",
+    estimatedReleaseDate: searchParams.get("estimatedReleaseDate") || "",
     categoryId: searchParams.get("categoryId") || "",
     subcategoryId: searchParams.get("subcategoryId") || "",
     description: searchParams.get("description") || "",
@@ -84,40 +87,31 @@ export default function CreateTicketForm() {
 
   const loadInitialData = async () => {
     console.log("[v0] Loading initial data for create ticket form")
-    const [buResult, catResult, usersResult, releasesResult] = await Promise.all([
+    const [buResult, catResult, usersResult, releasesResult, projectsResult] = await Promise.all([
       getBusinessUnitGroups(),
       getCategories(),
       getUsers(),
       getProductReleases(),
+      getProjectNames(),
     ])
 
     console.log("[v0] Business Units:", buResult)
     console.log("[v0] Categories:", catResult)
     console.log("[v0] Users:", usersResult)
     console.log("[v0] Product Releases:", releasesResult)
+    console.log("[v0] Projects:", projectsResult)
 
     if (buResult.success) setBusinessUnitGroups(buResult.data || [])
     if (catResult.success) setCategories(catResult.data || [])
     if (usersResult.success) setAssignees(usersResult.data || [])
     if (releasesResult.success) setProductReleases(releasesResult.data || [])
+    if (projectsResult.success) setProjects(projectsResult.data || [])
 
     // If duplicating, load dependent data
     if (isDuplicate) {
-      if (formData.businessUnitGroupId) {
-        loadProjects(Number(formData.businessUnitGroupId))
-      }
       if (formData.categoryId) {
         loadSubcategories(Number(formData.categoryId))
       }
-    }
-  }
-
-  const loadProjects = async (businessUnitGroupId: number) => {
-    console.log("[v0] Loading projects for business unit:", businessUnitGroupId)
-    const result = await getProjects(businessUnitGroupId)
-    console.log("[v0] Projects result:", result)
-    if (result.success) {
-      setProjects(result.data || [])
     }
   }
 
@@ -148,21 +142,31 @@ export default function CreateTicketForm() {
 
   // Note: Auto-fill is now handled directly in handleSubcategoryChange using subcategory data
 
+  // Auto-fill SPOC based on ticket classification mapping
   useEffect(() => {
-    if (formData.businessUnitGroupId) {
-      // Load projects for this business unit
-      loadProjects(Number(formData.businessUnitGroupId))
-      // Only reset classification fields, keep others
-      setFormData((prev) => ({
-        ...prev,
-        projectName: "",
-        categoryId: "",
-        subcategoryId: "",
-      }))
-    } else {
-      setProjects([])
+    const autoFillSpoc = async () => {
+      if (formData.businessUnitGroupId && formData.categoryId) {
+        const subcatId = formData.subcategoryId && formData.subcategoryId !== "N/A"
+          ? Number(formData.subcategoryId)
+          : null
+
+        const result = await getAutoTitleTemplate(
+          Number(formData.businessUnitGroupId),
+          Number(formData.categoryId),
+          subcatId
+        )
+
+        if (result.success && result.data && result.data.spoc_user_id) {
+          setFormData((prev) => ({
+            ...prev,
+            spocId: result.data.spoc_user_id.toString(),
+          }))
+        }
+      }
     }
-  }, [formData.businessUnitGroupId])
+
+    autoFillSpoc()
+  }, [formData.businessUnitGroupId, formData.categoryId, formData.subcategoryId])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -212,6 +216,25 @@ export default function CreateTicketForm() {
       setFormData((prev) => ({
         ...prev,
         subcategoryId: value,
+      }))
+    }
+  }
+
+  const handleProjectChange = (value: string) => {
+    // Find the selected project to get auto-fill data
+    const selectedProject = projects.find((p) => p.id.toString() === value)
+
+    if (selectedProject && selectedProject.estimated_release_date) {
+      setFormData((prev) => ({
+        ...prev,
+        projectId: value,
+        estimatedReleaseDate: selectedProject.estimated_release_date,
+      }))
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        projectId: value,
+        estimatedReleaseDate: "",
       }))
     }
   }
@@ -278,7 +301,7 @@ export default function CreateTicketForm() {
       const result = await createTicket({
         ticketType: formData.ticketType,
         businessUnitGroupId: Number(formData.businessUnitGroupId),
-        projectName: formData.projectName,
+        projectId: formData.projectId ? Number(formData.projectId) : null,
         categoryId: Number(formData.categoryId),
         subcategoryId: formData.subcategoryId && formData.subcategoryId !== "N/A" ? Number(formData.subcategoryId) : null,
         title: generatedTitle,
@@ -286,6 +309,7 @@ export default function CreateTicketForm() {
         estimatedDuration: formData.estimatedDuration,
         spocId: Number(formData.spocId),
         productReleaseName: formData.productReleaseName,
+        estimatedReleaseDate: formData.estimatedReleaseDate || null,
       })
 
       console.log("[v0] Create ticket result:", result)
@@ -396,24 +420,44 @@ export default function CreateTicketForm() {
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-2">
-            Project Name <span className="text-xs text-foreground-secondary font-normal">(Optional)</span>
-          </label>
-          <Combobox
-            options={projects.map((proj) => ({
-              value: proj.name,
-              label: proj.name,
-              subtitle: proj.description,
-            }))}
-            value={formData.projectName}
-            onChange={(value) => setFormData((prev) => ({ ...prev, projectName: value }))}
-            placeholder={formData.businessUnitGroupId ? "Select a project..." : "Select a group first"}
-            searchPlaceholder="Search projects..."
-            emptyText="No projects found for this group"
-            disabled={!formData.businessUnitGroupId}
-          />
-        </div>
+        {formData.ticketType === "requirement" && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Project <span className="text-xs text-foreground-secondary font-normal">(For New Requirements)</span>
+              </label>
+              <Combobox
+                options={projects.map((proj) => ({
+                  value: proj.id.toString(),
+                  label: proj.name,
+                  subtitle: proj.estimated_release_date
+                    ? `Release: ${new Date(proj.estimated_release_date).toLocaleDateString()}`
+                    : "No release date",
+                }))}
+                value={formData.projectId}
+                onChange={handleProjectChange}
+                placeholder="Select a project..."
+                searchPlaceholder="Search projects..."
+                emptyText="No projects found"
+              />
+            </div>
+
+            {formData.estimatedReleaseDate && (
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Estimated Release Date
+                </label>
+                <input
+                  type="text"
+                  value={new Date(formData.estimatedReleaseDate).toLocaleDateString()}
+                  readOnly
+                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-surface text-foreground cursor-not-allowed text-sm"
+                  placeholder="Auto-populated from project"
+                />
+              </div>
+            )}
+          </>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">Category *</label>

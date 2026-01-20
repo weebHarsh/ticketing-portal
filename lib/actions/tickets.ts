@@ -27,6 +27,7 @@ export async function getTickets(filters?: {
         c.name as category_name,
         sc.name as subcategory_name,
         bug.name as group_name,
+        p.name as project_name,
         (SELECT COUNT(*) FROM attachments att WHERE att.ticket_id = t.id) as attachment_count
       FROM tickets t
       LEFT JOIN users u ON t.created_by = u.id
@@ -35,6 +36,7 @@ export async function getTickets(filters?: {
       LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN subcategories sc ON t.subcategory_id = sc.id
       LEFT JOIN business_unit_groups bug ON t.business_unit_group_id = bug.id
+      LEFT JOIN projects p ON t.project_id = p.id
       WHERE (t.is_deleted IS NULL OR t.is_deleted = FALSE)
       ORDER BY t.created_at DESC
     `
@@ -142,14 +144,16 @@ export async function getTicketById(id: number) {
 export async function createTicket(data: {
   ticketType: string
   businessUnitGroupId: number
-  projectName: string
+  projectName?: string
+  projectId?: number | null
   categoryId: number
   subcategoryId: number | null
   title: string
   description: string
   estimatedDuration: string
   spocId: number
-  productReleaseName: string
+  productReleaseName?: string
+  estimatedReleaseDate?: string | null
 }) {
   try {
     const currentUser = await getCurrentUser()
@@ -167,8 +171,8 @@ export async function createTicket(data: {
       INSERT INTO tickets (
         ticket_id, title, description, ticket_type, priority,
         status, created_by, assigned_to, spoc_user_id,
-        business_unit_group_id, project_name, category_id, subcategory_id,
-        estimated_duration, product_release_name
+        business_unit_group_id, project_name, project_id, category_id, subcategory_id,
+        estimated_duration, product_release_name, estimated_release_date
       )
       VALUES (
         ${ticketId},
@@ -182,10 +186,12 @@ export async function createTicket(data: {
         ${data.spocId},
         ${data.businessUnitGroupId},
         ${data.projectName || null},
+        ${data.projectId || null},
         ${data.categoryId},
         ${data.subcategoryId},
         ${data.estimatedDuration},
-        ${data.productReleaseName || null}
+        ${data.productReleaseName || null},
+        ${data.estimatedReleaseDate || null}
       )
       RETURNING *
     `
