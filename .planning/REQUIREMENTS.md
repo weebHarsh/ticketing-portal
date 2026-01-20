@@ -101,13 +101,51 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (To be filled by roadmapper) | | |
+| REL-01 | Phase 6 | Pending |
+| REL-02 | Phase 2 | Pending |
+| REL-03 | Phase 2 | Pending |
+| REL-04 | Phase 2 | Pending |
+| REL-05 | Phase 2 | Pending |
+| REL-06 | Phase 2 | Pending |
+| TBL-01 | Phase 3 | Pending |
+| TBL-02 | Phase 3 | Pending |
+| TBL-03 | Phase 3 | Pending |
+| TBL-04 | Phase 3 | Pending |
+| TBL-05 | Phase 3 | Pending |
+| TBL-06 | Phase 3 | Pending |
+| TBL-07 | Phase 3 | Pending |
+| TBL-08 | Phase 3 | Pending |
+| EDIT-01 | Phase 4 | Pending |
+| EDIT-02 | Phase 4 | Pending |
+| EDIT-03 | Phase 4 | Pending |
+| EDIT-04 | Phase 4 | Pending |
+| TYPE-01 | Phase 5 | Pending |
+| TYPE-02 | Phase 5 | Pending |
+| TYPE-03 | Phase 5 | Pending |
+| TYPE-04 | Phase 5 | Pending |
+| TYPE-05 | Phase 5 | Pending |
+| TYPE-06 | Phase 5 | Pending |
+| MAST-01 | Phase 1 | Pending |
+| MAST-02 | Phase 1 | Pending |
+| MAST-03 | Phase 5 | Pending |
+| MAST-04 | Phase 1 | Pending |
+| MAST-05 | Phase 1 | Pending |
+| MAST-06 | Phase 1 | Pending |
+| MAST-07 | Phase 1 | Pending |
+| MAST-08 | Phase 1 | Pending |
+| AUD-01 | Phase 6 | Pending |
+| AUD-02 | Phase 6 | Pending |
+| AUD-03 | Phase 6 | Pending |
+| AUD-04 | Phase 6 | Pending |
+| DASH-01 | Phase 2 | Pending |
+| DASH-02 | Phase 2 | Pending |
+| DASH-03 | Phase 2 | Pending |
 
 **Coverage:**
 - v1 requirements: 33 total
-- Mapped to phases: 0
-- Unmapped: 33 ⚠️
+- Mapped to phases: 33
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-19*
-*Last updated: 2026-01-19 after initial definition*
+*Last updated: 2026-01-20 after roadmap creation*
