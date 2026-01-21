@@ -18,6 +18,8 @@ interface Ticket {
   assignee_name: string | null
   spoc_name: string | null
   attachment_count: number
+  closed_by_name: string | null
+  closed_at: string | null
 }
 
 export default function RecentTickets() {
@@ -129,11 +131,18 @@ export default function RecentTickets() {
                   <td className="px-4 py-3 text-sm text-foreground">{ticket.spoc_name || "-"}</td>
                   <td className="px-4 py-3 text-sm text-foreground">{ticket.assignee_name || "Unassigned"}</td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}
-                    >
-                      {formatStatus(ticket.status)}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}
+                      >
+                        {formatStatus(ticket.status)}
+                      </span>
+                      {ticket.status.toLowerCase() === "closed" && ticket.closed_by_name && (
+                        <span className="text-xs text-muted-foreground" title={ticket.closed_at ? format(new Date(ticket.closed_at), "MMM dd, yyyy hh:mm a") : ""}>
+                          by {ticket.closed_by_name}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-center">
                     {Number(ticket.attachment_count) > 0 ? (

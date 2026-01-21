@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import DashboardLayout from "@/components/layout/dashboard-layout"
-import { ArrowLeft, Edit, MessageSquare, Paperclip, Clock, User, Calendar, Tag, Download, FileText, ListChecks } from "lucide-react"
+import { ArrowLeft, Edit, MessageSquare, Paperclip, Clock, User, Calendar, Tag, Download, FileText, ListChecks, CheckCircle2 } from "lucide-react"
 import { getTicketById, updateTicketStatus, addComment } from "@/lib/actions/tickets"
 import { getSubcategoryDetails } from "@/lib/actions/master-data"
 import { format } from "date-fns"
@@ -336,6 +336,39 @@ export default function TicketDetailPage() {
                 )}
               </div>
             </div>
+
+            {/* Closure Audit Trail */}
+            {ticket.status === "closed" && (ticket.closed_by || ticket.closed_at) && (
+              <div className="bg-white border border-border rounded-xl p-6">
+                <h3 className="font-poppins font-semibold text-foreground mb-4 flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-green-600" />
+                  Closure Information
+                </h3>
+                <div className="space-y-4">
+                  {ticket.closed_by_name && (
+                    <div className="flex items-start gap-3">
+                      <User className="w-5 h-5 text-foreground-secondary mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-xs text-foreground-secondary">Closed By</p>
+                        <p className="text-sm font-medium text-foreground">{ticket.closed_by_name}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {ticket.closed_at && (
+                    <div className="flex items-start gap-3">
+                      <Calendar className="w-5 h-5 text-foreground-secondary mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-xs text-foreground-secondary">Closed At</p>
+                        <p className="text-sm font-medium text-foreground">
+                          {format(new Date(ticket.closed_at), "MMM dd, yyyy HH:mm")}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

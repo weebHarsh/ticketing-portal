@@ -93,15 +93,17 @@ export async function getTicketById(id: number) {
     }
 
     const ticketResult = await sql`
-      SELECT 
+      SELECT
         t.*,
         u.full_name as creator_name,
         u.email as creator_email,
         a.full_name as assignee_name,
-        a.email as assignee_email
+        a.email as assignee_email,
+        c.full_name as closed_by_name
       FROM tickets t
       LEFT JOIN users u ON t.created_by = u.id
       LEFT JOIN users a ON t.assigned_to = a.id
+      LEFT JOIN users c ON t.closed_by = c.id
       WHERE t.id = ${id}
     `
 
@@ -255,7 +257,9 @@ export async function updateTicketStatus(ticketId: number, status: string) {
       UPDATE tickets
       SET status = ${status},
           updated_at = CURRENT_TIMESTAMP,
-          resolved_at = CASE WHEN ${status} = 'closed' THEN CURRENT_TIMESTAMP ELSE resolved_at END
+          resolved_at = CASE WHEN ${status} = 'closed' THEN CURRENT_TIMESTAMP ELSE resolved_at END,
+          closed_by = CASE WHEN ${status} = 'closed' THEN ${currentUser?.id || null} ELSE closed_by END,
+          closed_at = CASE WHEN ${status} = 'closed' THEN CURRENT_TIMESTAMP ELSE closed_at END
       WHERE id = ${ticketId}
     `
 

@@ -42,10 +42,13 @@ export async function getRecentTickets(limit = 5) {
         t.created_at,
         a.full_name as assignee_name,
         spoc.full_name as spoc_name,
+        closer.full_name as closed_by_name,
+        t.closed_at,
         (SELECT COUNT(*) FROM attachments att WHERE att.ticket_id = t.id) as attachment_count
       FROM tickets t
       LEFT JOIN users a ON t.assigned_to = a.id
       LEFT JOIN users spoc ON t.spoc_user_id = spoc.id
+      LEFT JOIN users closer ON t.closed_by = closer.id
       LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN subcategories sc ON t.subcategory_id = sc.id
       WHERE (t.is_deleted IS NULL OR t.is_deleted = FALSE)
