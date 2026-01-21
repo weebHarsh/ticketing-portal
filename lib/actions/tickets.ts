@@ -146,7 +146,7 @@ export async function createTicket(data: {
   businessUnitGroupId: number
   projectName?: string
   projectId?: number | null
-  categoryId: number
+  categoryId: number | null
   subcategoryId: number | null
   title: string
   description: string
@@ -187,9 +187,9 @@ export async function createTicket(data: {
         ${data.businessUnitGroupId},
         ${data.projectName || null},
         ${data.projectId || null},
-        ${data.categoryId},
-        ${data.subcategoryId},
-        ${data.estimatedDuration},
+        ${data.categoryId || null},
+        ${data.subcategoryId || null},
+        ${data.estimatedDuration || null},
         ${data.productReleaseName || null},
         ${data.estimatedReleaseDate || null}
       )

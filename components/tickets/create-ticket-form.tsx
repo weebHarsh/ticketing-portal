@@ -25,6 +25,7 @@ interface FormData {
   estimatedReleaseDate: string
   categoryId: string
   subcategoryId: string
+  title: string
   description: string
   estimatedDuration: string
   spocId: string
@@ -44,6 +45,7 @@ export default function CreateTicketForm() {
     estimatedReleaseDate: searchParams.get("estimatedReleaseDate") || "",
     categoryId: searchParams.get("categoryId") || "",
     subcategoryId: searchParams.get("subcategoryId") || "",
+    title: searchParams.get("title") || "",
     description: searchParams.get("description") || "",
     estimatedDuration: searchParams.get("estimatedDuration") || "",
     spocId: searchParams.get("spocId") || "",
@@ -282,31 +284,43 @@ export default function CreateTicketForm() {
     try {
       console.log("[v0] Submitting ticket with data:", formData)
 
-      if (
-        !formData.businessUnitGroupId ||
-        !formData.categoryId ||
-        !formData.subcategoryId ||
-        !formData.spocId
-      ) {
-        throw new Error("Please fill in all required fields (Group, Category, Sub-Category, SPOC)")
+      // Validate based on ticket type
+      if (formData.ticketType === "requirement") {
+        if (!formData.businessUnitGroupId || !formData.title || !formData.spocId) {
+          throw new Error("Please fill in all required fields (Group, Title, SPOC)")
+        }
+      } else {
+        if (
+          !formData.businessUnitGroupId ||
+          !formData.categoryId ||
+          !formData.subcategoryId ||
+          !formData.spocId
+        ) {
+          throw new Error("Please fill in all required fields (Group, Category, Sub-Category, SPOC)")
+        }
       }
 
-      // Generate title from category + subcategory
-      const selectedCategory = categories.find((c) => c.id.toString() === formData.categoryId)
-      const selectedSubcategory = subcategories.find((s) => s.id.toString() === formData.subcategoryId)
-      const generatedTitle = selectedSubcategory
-        ? `${selectedCategory?.name} - ${selectedSubcategory?.name}`
-        : selectedCategory?.name || "Untitled Ticket"
+      // Generate or use title based on ticket type
+      let ticketTitle: string
+      if (formData.ticketType === "requirement") {
+        ticketTitle = formData.title
+      } else {
+        const selectedCategory = categories.find((c) => c.id.toString() === formData.categoryId)
+        const selectedSubcategory = subcategories.find((s) => s.id.toString() === formData.subcategoryId)
+        ticketTitle = selectedSubcategory
+          ? `${selectedCategory?.name} - ${selectedSubcategory?.name}`
+          : selectedCategory?.name || "Untitled Ticket"
+      }
 
       const result = await createTicket({
         ticketType: formData.ticketType,
         businessUnitGroupId: Number(formData.businessUnitGroupId),
         projectId: formData.projectId ? Number(formData.projectId) : null,
-        categoryId: Number(formData.categoryId),
+        categoryId: formData.categoryId ? Number(formData.categoryId) : null,
         subcategoryId: formData.subcategoryId && formData.subcategoryId !== "N/A" ? Number(formData.subcategoryId) : null,
-        title: generatedTitle,
+        title: ticketTitle,
         description: formData.description || "",
-        estimatedDuration: formData.estimatedDuration,
+        estimatedDuration: formData.estimatedDuration || "",
         spocId: Number(formData.spocId),
         productReleaseName: formData.productReleaseName,
         estimatedReleaseDate: formData.estimatedReleaseDate || null,
@@ -459,72 +473,106 @@ export default function CreateTicketForm() {
           </>
         )}
 
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Category *</label>
-          <Combobox
-            options={categories.map((cat) => ({
-              value: cat.id.toString(),
-              label: cat.name,
-              subtitle: cat.description,
-            }))}
-            value={formData.categoryId}
-            onChange={handleCategoryChange}
-            placeholder={formData.businessUnitGroupId ? "Select a category..." : "Select a group first"}
-            searchPlaceholder="Search categories..."
-            emptyText="No categories found"
-            disabled={!formData.businessUnitGroupId}
-          />
-        </div>
+        {formData.ticketType === "requirement" ? (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Title *
+              </label>
+              <input
+                type="text"
+                name="title"
+                value={formData.title}
+                onChange={handleInputChange}
+                placeholder="Enter a descriptive title for this requirement"
+                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+              />
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-2">
-            Sub-Category *
-          </label>
-          <Combobox
-            options={
-              subcategories.length > 0
-                ? subcategories.map((sub) => ({
-                    value: sub.id.toString(),
-                    label: sub.name,
-                    subtitle: sub.description,
-                  }))
-                : [{ value: "N/A", label: "N/A", subtitle: "No subcategories available" }]
-            }
-            value={formData.subcategoryId || (subcategories.length === 0 && formData.categoryId ? "N/A" : "")}
-            onChange={handleSubcategoryChange}
-            placeholder={formData.categoryId ? "Select a sub-category..." : "Select a category first"}
-            searchPlaceholder="Search sub-categories..."
-            emptyText="No sub-categories available"
-            disabled={!formData.categoryId}
-          />
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Description
+              </label>
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                placeholder="Describe the requirement in detail..."
+                rows={6}
+                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Category *</label>
+              <Combobox
+                options={categories.map((cat) => ({
+                  value: cat.id.toString(),
+                  label: cat.name,
+                  subtitle: cat.description,
+                }))}
+                value={formData.categoryId}
+                onChange={handleCategoryChange}
+                placeholder={formData.businessUnitGroupId ? "Select a category..." : "Select a group first"}
+                searchPlaceholder="Search categories..."
+                emptyText="No categories found"
+                disabled={!formData.businessUnitGroupId}
+              />
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-2">
-            Description
-          </label>
-          <textarea
-            name="description"
-            value={formData.description}
-            onChange={handleInputChange}
-            placeholder="Auto-filled based on category and sub-category selection. You can edit this."
-            rows={4}
-            className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
-          />
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Sub-Category *
+              </label>
+              <Combobox
+                options={
+                  subcategories.length > 0
+                    ? subcategories.map((sub) => ({
+                        value: sub.id.toString(),
+                        label: sub.name,
+                        subtitle: sub.description,
+                      }))
+                    : [{ value: "N/A", label: "N/A", subtitle: "No subcategories available" }]
+                }
+                value={formData.subcategoryId || (subcategories.length === 0 && formData.categoryId ? "N/A" : "")}
+                onChange={handleSubcategoryChange}
+                placeholder={formData.categoryId ? "Select a sub-category..." : "Select a category first"}
+                searchPlaceholder="Search sub-categories..."
+                emptyText="No sub-categories available"
+                disabled={!formData.categoryId}
+              />
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-2">
-            Estimated Duration
-          </label>
-          <input
-            type="text"
-            value={formData.estimatedDuration}
-            readOnly
-            className="w-full px-4 py-2.5 border border-border rounded-lg bg-surface text-foreground cursor-not-allowed text-sm"
-            placeholder="Auto-populated based on classification mapping"
-          />
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Description
+              </label>
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                placeholder="Auto-filled based on category and sub-category selection. You can edit this."
+                rows={4}
+                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Estimated Duration
+              </label>
+              <input
+                type="text"
+                value={formData.estimatedDuration}
+                readOnly
+                className="w-full px-4 py-2.5 border border-border rounded-lg bg-surface text-foreground cursor-not-allowed text-sm"
+                placeholder="Auto-populated based on classification mapping"
+              />
+            </div>
+          </>
+        )}
       </div>
 
       <div className="bg-white border border-border rounded-xl p-6 space-y-4">

@@ -285,13 +285,14 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
       "Time": format(new Date(ticket.created_at), "hh:mm a"),
       "Type": ticket.ticket_type,
       "Ticket ID": ticket.ticket_id,
-      "Category": ticket.category_name || "N/A",
-      "Subcategory": ticket.subcategory_name || "-",
+      "Title": ticket.ticket_type === "requirement" ? (ticket.title || "Untitled") : "-",
+      "Category": ticket.ticket_type === "support" ? (ticket.category_name || "N/A") : "-",
+      "Subcategory": ticket.ticket_type === "support" ? (ticket.subcategory_name || "-") : "-",
       "Project": ticket.project_name || "-",
       "Release Date": ticket.estimated_release_date
         ? format(new Date(ticket.estimated_release_date), "MMM dd, yyyy")
         : "-",
-      "Description": ticket.description || ticket.title,
+      "Description": ticket.description || "",
       "Assignee": ticket.assignee_name || "Unassigned",
       "SPOC": ticket.spoc_name || "-",
       "Status": ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1),
@@ -311,6 +312,7 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
       { wch: 10 }, // Time
       { wch: 12 }, // Type
       { wch: 15 }, // Ticket ID
+      { wch: 30 }, // Title
       { wch: 20 }, // Category
       { wch: 20 }, // Subcategory
       { wch: 20 }, // Project
@@ -368,7 +370,7 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                 Tkt ID
               </th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-foreground tracking-wider">
-                Category
+                Title / Category
               </th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-foreground tracking-wider">
                 Project / Release
@@ -440,18 +442,24 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                   </div>
                 </td>
 
-                {/* Category/Subcategory Stacked */}
+                {/* Title (for Requirements) or Category/Subcategory (for Support) */}
                 <td className="px-4 py-3">
-                  <div className="flex flex-col">
+                  {ticket.ticket_type === "requirement" ? (
                     <span className="text-base font-medium text-foreground">
-                      {ticket.category_name || "N/A"}
+                      {ticket.title || "Untitled"}
                     </span>
-                    {ticket.subcategory_name && (
-                      <span className="text-sm text-foreground-secondary">
-                        {ticket.subcategory_name}
+                  ) : (
+                    <div className="flex flex-col">
+                      <span className="text-base font-medium text-foreground">
+                        {ticket.category_name || "N/A"}
                       </span>
-                    )}
-                  </div>
+                      {ticket.subcategory_name && (
+                        <span className="text-sm text-foreground-secondary">
+                          {ticket.subcategory_name}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </td>
 
                 {/* Project/Release Stacked */}
