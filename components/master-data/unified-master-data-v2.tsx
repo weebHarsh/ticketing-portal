@@ -224,7 +224,7 @@ export default function UnifiedMasterDataV2() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="business-groups">Business Groups</TabsTrigger>
-          <TabsTrigger value="categories">Categories & Classification</TabsTrigger>
+          <TabsTrigger value="categories">Categories & Sub categories</TabsTrigger>
           <TabsTrigger value="project-names">Project Names</TabsTrigger>
         </TabsList>
 
@@ -281,7 +281,7 @@ export default function UnifiedMasterDataV2() {
         <TabsContent value="categories" className="mt-6">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h2 className="font-poppins font-bold text-foreground text-lg">Categories & Classification</h2>
+              <h2 className="font-poppins font-bold text-foreground text-lg">Categories & Sub categories</h2>
               <p className="text-sm text-foreground-secondary mt-1">
                 Manage categories, subcategories, and ticket classification mappings
               </p>
@@ -375,7 +375,7 @@ export default function UnifiedMasterDataV2() {
                                     </div>
 
                                     {/* Show all mappings for this subcategory */}
-                                    {subcatMappings.length > 0 ? (
+                                    {subcatMappings.length > 0 && (
                                       <div className="space-y-1">
                                         {subcatMappings.map((mapping) => (
                                           <div
@@ -412,10 +412,6 @@ export default function UnifiedMasterDataV2() {
                                             </div>
                                           </div>
                                         ))}
-                                      </div>
-                                    ) : (
-                                      <div className="text-xs text-orange-600 bg-orange-50 p-2 rounded">
-                                        No classification mappings configured
                                       </div>
                                     )}
                                   </div>
@@ -484,7 +480,12 @@ export default function UnifiedMasterDataV2() {
           fields={[
             { name: "name", label: "Name", type: "text", required: true },
             { name: "description", label: "Description", type: "textarea" },
-            { name: "spoc_name", label: "SPOC Name", type: "text" },
+            {
+              name: "spoc_name",
+              label: "SPOC Name",
+              type: "select",
+              options: users.map(user => ({ value: user.full_name, label: user.full_name }))
+            },
           ]}
           initialData={editBG}
           onSave={(data) =>
@@ -521,8 +522,9 @@ export default function UnifiedMasterDataV2() {
               type: "select",
               required: true,
               options: categories.map((cat) => ({ value: cat.id, label: cat.name })),
+              disabled: !!editSubcategory.category_id && !editSubcategory.id,
             },
-            { name: "name", label: "Subcategory Name", type: "text", required: true },
+            { name: "name", label: "Name", type: "text", required: true },
             { name: "description", label: "Description", type: "textarea" },
           ]}
           initialData={editSubcategory}

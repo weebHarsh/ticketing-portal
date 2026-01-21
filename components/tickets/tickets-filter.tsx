@@ -125,19 +125,6 @@ export default function TicketsFilter({ onFilterChange, onExport }: TicketsFilte
           </button>
         )}
 
-        {/* My Team Toggle */}
-        <button
-          onClick={handleMyTeamToggle}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-            filters.myTeam
-              ? "bg-primary text-white"
-              : "bg-white border border-border text-foreground hover:bg-surface"
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          My Team
-        </button>
-
         {/* Filters Toggle */}
         <button
           onClick={() => setShowFilters(!showFilters)}
@@ -154,6 +141,19 @@ export default function TicketsFilter({ onFilterChange, onExport }: TicketsFilte
               {activeFilterCount}
             </span>
           )}
+        </button>
+
+        {/* My Team Toggle */}
+        <button
+          onClick={handleMyTeamToggle}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+            filters.myTeam
+              ? "bg-primary text-white"
+              : "bg-white border border-border text-foreground hover:bg-surface"
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          My Team
         </button>
       </div>
 

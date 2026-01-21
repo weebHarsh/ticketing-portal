@@ -10,24 +10,35 @@ import {
   deleteBusinessUnitGroup,
   bulkUploadBusinessUnitGroups,
 } from "@/lib/actions/master-data"
+import { getUsers } from "@/lib/actions/tickets"
 import BulkUploadDialog from "./bulk-upload-dialog"
 import EditDialog from "./edit-dialog"
 
 export default function BusinessUnitGroupsTab() {
   const [data, setData] = useState<any[]>([])
+  const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showBulkUpload, setShowBulkUpload] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
 
   const loadData = async () => {
     setLoading(true)
-    const result = await getBusinessUnitGroups()
-    if (result.success && result.data) {
-      setData(result.data)
+    const [groupsResult, usersResult] = await Promise.all([
+      getBusinessUnitGroups(),
+      getUsers()
+    ])
+
+    if (groupsResult.success && groupsResult.data) {
+      setData(groupsResult.data)
     } else {
       setData([])
-      console.error("Failed to load business unit groups:", result.error)
+      console.error("Failed to load business unit groups:", groupsResult.error)
     }
+
+    if (usersResult.success && usersResult.data) {
+      setUsers(usersResult.data)
+    }
+
     setLoading(false)
   }
 
@@ -168,7 +179,12 @@ export default function BusinessUnitGroupsTab() {
           fields={[
             { name: "name", label: "Name", type: "text", required: true },
             { name: "description", label: "Description", type: "textarea" },
-            { name: "spoc_name", label: "SPOC Name", type: "text" },
+            {
+              name: "spoc_name",
+              label: "SPOC Name",
+              type: "select",
+              options: users.map(user => ({ value: user.full_name, label: user.full_name }))
+            },
           ]}
           initialData={editItem}
           onSave={(data) =>
