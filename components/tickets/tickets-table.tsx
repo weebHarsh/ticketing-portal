@@ -9,6 +9,7 @@ import {
   getTicketById,
   softDeleteTicket,
   updateTicketAssignee,
+  updateTicketStatus,
   getUsers,
 } from "@/lib/actions/tickets"
 import { getMyTeamMembers } from "@/lib/actions/my-team"
@@ -226,6 +227,28 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
       userId === ticket.spoc_user_id ||
       currentUser.role?.toLowerCase() === "admin"
     )
+  }
+
+  const canEditStatus = (ticket: Ticket) => {
+    if (!currentUser) return false
+    const userId = Number(currentUser.id)
+    return (
+      userId === ticket.spoc_user_id ||
+      userId === ticket.assigned_to ||
+      currentUser.role?.toLowerCase() === "admin"
+    )
+  }
+
+  const handleStatusChange = async (ticketId: number, newStatus: string) => {
+    const result = await updateTicketStatus(ticketId, newStatus)
+    if (result.success) {
+      // Update local state to reflect change without page refresh
+      setTickets(tickets.map(t =>
+        t.id === ticketId ? { ...t, status: newStatus as "open" | "closed" | "hold" } : t
+      ))
+    } else {
+      alert("Failed to update status: " + (result.error || "Unknown error"))
+    }
   }
 
   const toggleAttachmentsDropdown = async (ticketId: number) => {
@@ -501,15 +524,33 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                   )}
                 </td>
 
-                {/* Status Badge */}
+                {/* Status - Editable for SPOC/Assignee */}
                 <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex px-3 py-1.5 rounded-full text-sm font-medium ${
-                      statusColor[ticket.status] || statusColor["open"]
-                    }`}
-                  >
-                    {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
-                  </span>
+                  {canEditStatus(ticket) ? (
+                    <select
+                      value={ticket.status}
+                      onChange={(e) => handleStatusChange(ticket.id, e.target.value)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border-2 focus:outline-none focus:ring-2 focus:ring-primary transition-all cursor-pointer ${
+                        ticket.status === "open"
+                          ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                          : ticket.status === "closed"
+                          ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                          : "bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100"
+                      }`}
+                    >
+                      <option value="open">Open</option>
+                      <option value="closed">Closed</option>
+                      <option value="hold">On-Hold</option>
+                    </select>
+                  ) : (
+                    <span
+                      className={`inline-flex px-3 py-1.5 rounded-full text-sm font-medium ${
+                        statusColor[ticket.status] || statusColor["open"]
+                      }`}
+                    >
+                      {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
+                    </span>
+                  )}
                 </td>
 
                 {/* Attachments */}
