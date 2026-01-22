@@ -121,19 +121,6 @@ export function LoginForm() {
           </button>
         </form>
 
-        {/* Info Box */}
-        <div className="mt-6 p-4 bg-muted/50 rounded-lg border border-border">
-          <p className="text-xs font-medium text-foreground mb-2">Demo Credentials</p>
-          <p className="text-xs text-muted-foreground">
-            Any of these emails:
-            <br />• john.doe@company.com
-            <br />• jane.smith@company.com
-            <br />• admin@company.com
-            <br />
-            Password: <strong>password</strong>
-          </p>
-        </div>
-
         {/* Signup Link */}
         <div className="text-center mt-4">
           <p className="text-sm text-muted-foreground">
