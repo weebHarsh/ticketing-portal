@@ -357,40 +357,37 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
         <table className="w-full">
           <thead className="bg-surface border-b border-border">
             <tr>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground tracking-wider w-10">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground whitespace-nowrap w-10">
                 #
               </th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground whitespace-nowrap">
                 Initiator
               </th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground whitespace-nowrap">
                 Date
               </th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground whitespace-nowrap">
+                Type
+              </th>
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground whitespace-nowrap">
                 Title / Category
               </th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground tracking-wider">
-                Project / Release
-              </th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground tracking-wider max-w-xs">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground whitespace-nowrap max-w-xs">
                 Description
               </th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground whitespace-nowrap">
                 SPOC
               </th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground tracking-wider w-[180px]">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground whitespace-nowrap">
                 Assignee
               </th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground tracking-wider">
-                Tkt ID
-              </th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground whitespace-nowrap">
                 Status
               </th>
-              <th className="px-3 py-2.5 text-center text-xs font-semibold text-foreground tracking-wider w-16">
+              <th className="px-3 py-2.5 text-center text-xs font-semibold text-foreground whitespace-nowrap w-14">
                 Files
               </th>
-              <th className="px-3 py-2.5 text-center text-xs font-semibold text-foreground tracking-wider w-24">
+              <th className="px-3 py-2.5 text-center text-xs font-semibold text-foreground whitespace-nowrap w-20">
                 Actions
               </th>
             </tr>
@@ -403,114 +400,77 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                   ticket.is_deleted ? "opacity-50 bg-gray-50" : ""
                 }`}
               >
-                {/* Row Number */}
-                <td className="px-3 py-2.5 text-sm text-foreground-secondary">{index + 1}</td>
+                {/* Row Number with Hash */}
+                <td className="px-3 py-2.5 text-sm font-medium text-primary whitespace-nowrap">#{index + 1}</td>
 
-                {/* Initiator Name and Group Stacked */}
-                <td className="px-3 py-2.5">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-foreground">
-                      {ticket.creator_name || "Unknown"}
-                    </span>
-                    <span className="text-xs text-foreground-secondary">
-                      {ticket.group_name || "No Group"}
-                    </span>
-                  </div>
+                {/* Initiator Name and Group */}
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  <div className="text-sm font-medium text-foreground">{ticket.creator_name || "Unknown"}</div>
+                  <div className="text-xs text-foreground-secondary">{ticket.group_name || "No Group"}</div>
                 </td>
 
-                {/* Date Stacked */}
-                <td className="px-3 py-2.5">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-foreground">
-                      {format(new Date(ticket.created_at), "MMM dd, yyyy")}
-                    </span>
-                    <span className="text-xs text-foreground-secondary">
-                      {format(new Date(ticket.created_at), "hh:mm a")}
-                    </span>
-                  </div>
+                {/* Date - Compact format */}
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  <div className="text-sm text-foreground">{format(new Date(ticket.created_at), "dd MMM yyyy")}</div>
+                  <div className="text-xs text-foreground-secondary">{format(new Date(ticket.created_at), "hh:mm a")}</div>
+                </td>
+
+                {/* Type */}
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                    ticket.ticket_type === "requirement"
+                      ? "bg-purple-100 text-purple-700"
+                      : "bg-blue-100 text-blue-700"
+                  }`}>
+                    {ticket.ticket_type === "requirement" ? "Requirement" : "Support"}
+                  </span>
                 </td>
 
                 {/* Title (for Requirements) or Category/Subcategory (for Support) */}
                 <td className="px-3 py-2.5">
                   {ticket.ticket_type === "requirement" ? (
-                    <span className="text-sm font-medium text-foreground">
-                      {ticket.title || "Untitled"}
-                    </span>
+                    <div className="text-sm font-medium text-foreground">{ticket.title || "Untitled"}</div>
                   ) : (
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-foreground">
-                        {ticket.category_name || "N/A"}
-                      </span>
+                    <>
+                      <div className="text-sm font-medium text-foreground">{ticket.category_name || "N/A"}</div>
                       {ticket.subcategory_name && (
-                        <span className="text-xs text-foreground-secondary">
-                          {ticket.subcategory_name}
-                        </span>
+                        <div className="text-xs text-foreground-secondary">{ticket.subcategory_name}</div>
                       )}
-                    </div>
+                    </>
                   )}
                 </td>
 
-                {/* Project/Release Stacked */}
-                <td className="px-3 py-2.5">
-                  {ticket.project_name || ticket.estimated_release_date ? (
-                    <div className="flex flex-col">
-                      {ticket.project_name && (
-                        <span className="text-sm font-medium text-foreground">
-                          {ticket.project_name}
-                        </span>
-                      )}
-                      {ticket.estimated_release_date && (
-                        <span className="text-xs text-foreground-secondary">
-                          {format(new Date(ticket.estimated_release_date), "MMM dd, yyyy")}
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-sm text-muted-foreground">-</span>
-                  )}
-                </td>
-
-                {/* Description Truncated with Tooltip */}
+                {/* Description Truncated */}
                 <td className="px-3 py-2.5">
                   <p
-                    className="text-sm text-foreground max-w-xs truncate cursor-pointer hover:text-primary"
+                    className="text-sm text-foreground max-w-[200px] truncate cursor-pointer hover:text-primary"
                     onClick={() => router.push(`/tickets/${ticket.id}`)}
                     title={ticket.description || ticket.title}
                   >
-                    {ticket.description || ticket.title}
+                    {ticket.description || ticket.title || "-"}
                   </p>
-                  {ticket.is_deleted && (
-                    <span className="text-xs text-red-600">(Deleted)</span>
-                  )}
+                  {ticket.is_deleted && <span className="text-xs text-red-600">(Deleted)</span>}
                 </td>
 
-                {/* SPOC Column */}
-                <td className="px-3 py-2.5">
-                  <span className="text-sm text-foreground">
-                    {ticket.spoc_name || "-"}
-                  </span>
+                {/* SPOC */}
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  <span className="text-sm text-foreground">{ticket.spoc_name || "-"}</span>
                 </td>
 
-                {/* Assignee Column */}
-                <td className="px-3 py-2.5 w-[180px]">
+                {/* Assignee */}
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   {ticket.assignee_name ? (
                     <span
-                      className={`text-sm font-medium text-foreground ${
-                        canEditAssignee(ticket)
-                          ? "cursor-pointer hover:text-primary"
-                          : ""
-                      }`}
+                      className={`text-sm font-medium text-foreground ${canEditAssignee(ticket) ? "cursor-pointer hover:text-primary" : ""}`}
                       onClick={() => canEditAssignee(ticket) && openAssigneeModal(ticket)}
                     >
                       {ticket.assignee_name}
-                      {canEditAssignee(ticket) && (
-                        <Edit className="w-3 h-3 inline ml-1 opacity-50" />
-                      )}
+                      {canEditAssignee(ticket) && <Edit className="w-3 h-3 inline ml-1 opacity-50" />}
                     </span>
                   ) : canEditAssignee(ticket) ? (
                     <button
                       onClick={() => openAssigneeModal(ticket)}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded-md text-xs font-medium hover:bg-amber-200 transition-colors w-fit"
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium hover:bg-amber-200"
                     >
                       <UserPlus className="w-3 h-3" />
                       Assign
@@ -520,30 +480,18 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                   )}
                 </td>
 
-                {/* Ticket ID and Type Stacked */}
-                <td className="px-3 py-2.5">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-primary">
-                      #{ticket.ticket_id}
-                    </span>
-                    <span className="text-xs text-foreground-secondary capitalize">
-                      {ticket.ticket_type}
-                    </span>
-                  </div>
-                </td>
-
-                {/* Status - Editable for SPOC/Assignee */}
-                <td className="px-3 py-2.5">
+                {/* Status */}
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   {canEditStatus(ticket) ? (
                     <select
                       value={ticket.status}
                       onChange={(e) => handleStatusChange(ticket.id, e.target.value)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border-2 focus:outline-none focus:ring-2 focus:ring-primary transition-all cursor-pointer ${
+                      className={`px-2 py-1 rounded text-xs font-medium border focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer ${
                         ticket.status === "open"
-                          ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                          ? "bg-blue-50 text-blue-700 border-blue-200"
                           : ticket.status === "closed"
-                          ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
-                          : "bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100"
+                          ? "bg-green-50 text-green-700 border-green-200"
+                          : "bg-yellow-50 text-yellow-700 border-yellow-200"
                       }`}
                     >
                       <option value="open">Open</option>
@@ -551,11 +499,7 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                       <option value="hold">On-Hold</option>
                     </select>
                   ) : (
-                    <span
-                      className={`inline-flex px-3 py-1.5 rounded-full text-sm font-medium ${
-                        statusColor[ticket.status] || statusColor["open"]
-                      }`}
-                    >
+                    <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${statusColor[ticket.status] || statusColor["open"]}`}>
                       {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
                     </span>
                   )}

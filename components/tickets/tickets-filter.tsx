@@ -118,7 +118,7 @@ export default function TicketsFilter({ onFilterChange, onExport }: TicketsFilte
         {onExport && (
           <button
             onClick={onExport}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap bg-green-600 text-white hover:bg-green-700"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap bg-white border border-border text-foreground hover:bg-surface"
           >
             <FileDown className="w-4 h-4" />
             Export

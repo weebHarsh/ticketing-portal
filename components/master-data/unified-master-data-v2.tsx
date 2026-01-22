@@ -328,24 +328,10 @@ export default function UnifiedMasterDataV2() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setEditSubcategory({
-                              id: null,
-                              category_id: category.id,
-                              name: "",
-                              description: "",
-                            })
-                          }
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setEditCategory(category)}>
+                        <Button variant="ghost" size="sm" onClick={() => setEditCategory(category)} title="Edit Category">
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteCategory(category.id)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteCategory(category.id)} title="Delete Category">
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </Button>
                       </div>
@@ -420,6 +406,7 @@ export default function UnifiedMasterDataV2() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
+                                      title="Add Mapping"
                                       onClick={() =>
                                         setEditMapping({
                                           id: null,
@@ -437,6 +424,7 @@ export default function UnifiedMasterDataV2() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
+                                      title="Edit Subcategory"
                                       onClick={() => setEditSubcategory(subcat)}
                                     >
                                       <Edit className="w-3 h-3" />
@@ -444,6 +432,7 @@ export default function UnifiedMasterDataV2() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
+                                      title="Delete Subcategory"
                                       onClick={() => handleDeleteSubcategory(subcat.id)}
                                     >
                                       <Trash2 className="w-3 h-3 text-red-500" />
@@ -453,11 +442,26 @@ export default function UnifiedMasterDataV2() {
                               </div>
                             )
                           })
-                        ) : (
-                          <div className="text-sm text-foreground-secondary italic p-2 ml-6">
-                            No subcategories. Click + to add one.
-                          </div>
-                        )}
+                        ) : null}
+
+                        {/* Add Subcategory Button */}
+                        <div className="ml-6 pt-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setEditSubcategory({
+                                id: null,
+                                category_id: category.id,
+                                name: "",
+                                description: "",
+                              })
+                            }
+                          >
+                            <Plus className="w-3 h-3 mr-1" />
+                            Add Subcategory
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>

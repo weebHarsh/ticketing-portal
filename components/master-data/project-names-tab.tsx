@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Plus, Edit, Trash2 } from "lucide-react"
+import { format } from "date-fns"
 import {
   getProjectNames,
   createProjectName,
@@ -10,6 +11,28 @@ import {
   deleteProjectName,
 } from "@/lib/actions/master-data"
 import EditDialog from "./edit-dialog"
+
+// Helper to format date for display
+const formatDateForDisplay = (date: any): string => {
+  if (!date) return "-"
+  try {
+    const d = new Date(date)
+    return format(d, "MMM dd, yyyy")
+  } catch {
+    return "-"
+  }
+}
+
+// Helper to format date for input (YYYY-MM-DD)
+const formatDateForInput = (date: any): string => {
+  if (!date) return ""
+  try {
+    const d = new Date(date)
+    return d.toISOString().split('T')[0]
+  } catch {
+    return ""
+  }
+}
 
 export default function ProjectNamesTab() {
   const [data, setData] = useState<any[]>([])
@@ -95,11 +118,14 @@ export default function ProjectNamesTab() {
                 <tr key={item.id} className="border-b border-border hover:bg-surface">
                   <td className="py-3 px-4">{item.name}</td>
                   <td className="py-3 px-4 text-foreground-secondary">
-                    {item.estimated_release_date || "-"}
+                    {formatDateForDisplay(item.estimated_release_date)}
                   </td>
                   <td className="py-3 px-4 text-right">
                     <div className="flex gap-2 justify-end">
-                      <Button variant="ghost" size="sm" onClick={() => setEditItem(item)}>
+                      <Button variant="ghost" size="sm" onClick={() => setEditItem({
+                        ...item,
+                        estimated_release_date: formatDateForInput(item.estimated_release_date)
+                      })}>
                         <Edit className="w-4 h-4" />
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)}>

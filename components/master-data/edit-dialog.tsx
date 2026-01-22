@@ -9,7 +9,7 @@ import { X } from "lucide-react"
 interface Field {
   name: string
   label: string
-  type: "text" | "textarea" | "number" | "select"
+  type: "text" | "textarea" | "number" | "select" | "date"
   required?: boolean
   options?: Array<{ value: any; label: string }>
   disabled?: boolean
