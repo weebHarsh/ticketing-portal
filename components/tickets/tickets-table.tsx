@@ -357,9 +357,6 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
         <table className="w-full">
           <thead className="bg-surface border-b border-border">
             <tr>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground whitespace-nowrap w-10">
-                #
-              </th>
               <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground whitespace-nowrap">
                 Initiator
               </th>
@@ -403,9 +400,6 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                   ticket.is_deleted ? "opacity-50 bg-gray-50" : ""
                 }`}
               >
-                {/* Row Number with Hash */}
-                <td className="px-3 py-2.5 text-sm font-medium text-primary whitespace-nowrap">#{index + 1}</td>
-
                 {/* Initiator Name and Group */}
                 <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="text-sm font-medium text-foreground">{ticket.creator_name || "Unknown"}</div>
@@ -418,7 +412,7 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                   <div className="text-xs text-foreground-secondary">{format(new Date(ticket.created_at), "hh:mm a")}</div>
                 </td>
 
-                {/* Type + Ticket ID */}
+                {/* Type + Row Number */}
                 <td className="px-3 py-2.5 whitespace-nowrap">
                   <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
                     ticket.ticket_type === "requirement"
@@ -427,7 +421,7 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                   }`}>
                     {ticket.ticket_type === "requirement" ? "Requirement" : "Support"}
                   </span>
-                  <div className="text-xs text-foreground-secondary mt-0.5">{ticket.ticket_id}</div>
+                  <div className="text-xs text-foreground-secondary mt-0.5">#{index + 1}</div>
                 </td>
 
                 {/* Title (for Requirements) or Category/Subcategory (for Support) */}

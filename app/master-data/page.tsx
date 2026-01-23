@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import DashboardLayout from "@/components/layout/dashboard-layout"
-import { Database } from "lucide-react"
 import UnifiedMasterDataV2 from "@/components/master-data/unified-master-data-v2"
 
 export default function MasterDataPage() {
@@ -40,8 +39,7 @@ export default function MasterDataPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-poppins font-bold text-foreground flex items-center gap-2">
-            <Database className="w-8 h-8" />
+          <h1 className="text-3xl font-poppins font-bold text-foreground">
             Master Data Management
           </h1>
           <p className="text-foreground-secondary mt-2">
