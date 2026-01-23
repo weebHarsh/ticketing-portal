@@ -372,6 +372,9 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
               <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground whitespace-nowrap">
                 Title / Category
               </th>
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground whitespace-nowrap">
+                Project
+              </th>
               <th className="px-3 py-2.5 text-left text-xs font-semibold text-foreground whitespace-nowrap max-w-xs">
                 Description
               </th>
@@ -415,7 +418,7 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                   <div className="text-xs text-foreground-secondary">{format(new Date(ticket.created_at), "hh:mm a")}</div>
                 </td>
 
-                {/* Type */}
+                {/* Type + Ticket ID */}
                 <td className="px-3 py-2.5 whitespace-nowrap">
                   <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
                     ticket.ticket_type === "requirement"
@@ -424,6 +427,7 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                   }`}>
                     {ticket.ticket_type === "requirement" ? "Requirement" : "Support"}
                   </span>
+                  <div className="text-xs text-foreground-secondary mt-0.5">{ticket.ticket_id}</div>
                 </td>
 
                 {/* Title (for Requirements) or Category/Subcategory (for Support) */}
@@ -434,9 +438,30 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                     <>
                       <div className="text-sm font-medium text-foreground">{ticket.category_name || "N/A"}</div>
                       {ticket.subcategory_name && (
-                        <div className="text-xs text-foreground-secondary">{ticket.subcategory_name}</div>
+                        <div
+                          className="text-xs text-foreground-secondary max-w-[150px] truncate"
+                          title={ticket.subcategory_name}
+                        >
+                          {ticket.subcategory_name}
+                        </div>
                       )}
                     </>
+                  )}
+                </td>
+
+                {/* Project */}
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  {ticket.project_name ? (
+                    <>
+                      <div className="text-sm text-foreground">{ticket.project_name}</div>
+                      {ticket.estimated_release_date && (
+                        <div className="text-xs text-foreground-secondary">
+                          {format(new Date(ticket.estimated_release_date), "dd MMM yyyy")}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">-</span>
                   )}
                 </td>
 

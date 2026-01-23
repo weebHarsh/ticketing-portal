@@ -90,7 +90,9 @@ export default function EditDialog({ title, fields, initialData, onSave, onClose
                   onChange={(e) => handleChange(field.name, e.target.value)}
                   required={field.required}
                   disabled={field.disabled}
-                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+                  className={`w-full px-4 py-2.5 border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm ${
+                    field.disabled ? "bg-gray-100 cursor-not-allowed" : "bg-background"
+                  }`}
                 />
               )}
             </div>

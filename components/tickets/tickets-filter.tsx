@@ -2,6 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { Search, Filter, Users, X, FileDown } from "lucide-react"
+import { getUsers } from "@/lib/actions/tickets"
+
+interface User {
+  id: number
+  full_name: string
+  email: string
+}
 
 interface TicketsFilterProps {
   onFilterChange: (filters: any) => void
@@ -11,6 +18,7 @@ interface TicketsFilterProps {
 export default function TicketsFilter({ onFilterChange, onExport }: TicketsFilterProps) {
   const [showFilters, setShowFilters] = useState(false)
   const [userId, setUserId] = useState<number | null>(null)
+  const [users, setUsers] = useState<User[]>([])
   const [filters, setFilters] = useState({
     status: "all",
     dateFrom: "",
@@ -32,7 +40,15 @@ export default function TicketsFilter({ onFilterChange, onExport }: TicketsFilte
     } catch (e) {
       console.error("Failed to parse user data:", e)
     }
+    loadUsers()
   }, [])
+
+  const loadUsers = async () => {
+    const result = await getUsers()
+    if (result.success && result.data) {
+      setUsers(result.data as User[])
+    }
+  }
 
   const handleApplyFilters = () => {
     onFilterChange({
@@ -215,25 +231,35 @@ export default function TicketsFilter({ onFilterChange, onExport }: TicketsFilte
             {/* SPOC Filter */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">SPOC</label>
-              <input
-                type="text"
+              <select
                 value={filters.spoc}
                 onChange={(e) => setFilters({ ...filters, spoc: e.target.value })}
-                placeholder="Filter by SPOC name"
-                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
-              />
+                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+              >
+                <option value="">All SPOCs</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.full_name}>
+                    {user.full_name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Assignee Filter */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">Assignee</label>
-              <input
-                type="text"
+              <select
                 value={filters.assignee}
                 onChange={(e) => setFilters({ ...filters, assignee: e.target.value })}
-                placeholder="Filter by assignee name"
-                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
-              />
+                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+              >
+                <option value="">All Assignees</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.full_name}>
+                    {user.full_name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

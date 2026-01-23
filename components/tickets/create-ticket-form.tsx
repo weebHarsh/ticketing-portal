@@ -13,8 +13,6 @@ import {
   getCategories,
   getSubcategories,
   getProjectNames,
-  getProductReleases,
-  getAutoTitleTemplate,
 } from "@/lib/actions/master-data"
 import { Combobox } from "@/components/ui/combobox"
 
@@ -59,7 +57,6 @@ export default function CreateTicketForm() {
   const [categories, setCategories] = useState<any[]>([])
   const [subcategories, setSubcategories] = useState<any[]>([])
   const [assignees, setAssignees] = useState<any[]>([])
-  const [productReleases, setProductReleases] = useState<any[]>([])
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -89,24 +86,21 @@ export default function CreateTicketForm() {
 
   const loadInitialData = async () => {
     console.log("[v0] Loading initial data for create ticket form")
-    const [buResult, catResult, usersResult, releasesResult, projectsResult] = await Promise.all([
+    const [buResult, catResult, usersResult, projectsResult] = await Promise.all([
       getBusinessUnitGroups(),
       getCategories(),
       getUsers(),
-      getProductReleases(),
       getProjectNames(),
     ])
 
     console.log("[v0] Business Units:", buResult)
     console.log("[v0] Categories:", catResult)
     console.log("[v0] Users:", usersResult)
-    console.log("[v0] Product Releases:", releasesResult)
     console.log("[v0] Projects:", projectsResult)
 
     if (buResult.success) setBusinessUnitGroups(buResult.data || [])
     if (catResult.success) setCategories(catResult.data || [])
     if (usersResult.success) setAssignees(usersResult.data || [])
-    if (releasesResult.success) setProductReleases(releasesResult.data || [])
     if (projectsResult.success) setProjects(projectsResult.data || [])
 
     // If duplicating, load dependent data
@@ -122,7 +116,8 @@ export default function CreateTicketForm() {
       loadSubcategories(Number(formData.categoryId))
     } else {
       setSubcategories([])
-      setFormData((prev) => ({ ...prev, subcategoryId: "", description: "", estimatedDuration: "", spocId: "" }))
+      // Don't reset spocId here - it's set by group selection
+      setFormData((prev) => ({ ...prev, subcategoryId: "", description: "", estimatedDuration: "" }))
     }
   }, [formData.categoryId])
 
@@ -143,32 +138,7 @@ export default function CreateTicketForm() {
   }
 
   // Note: Auto-fill is now handled directly in handleSubcategoryChange using subcategory data
-
-  // Auto-fill SPOC based on ticket classification mapping
-  useEffect(() => {
-    const autoFillSpoc = async () => {
-      if (formData.businessUnitGroupId && formData.categoryId) {
-        const subcatId = formData.subcategoryId && formData.subcategoryId !== "N/A"
-          ? Number(formData.subcategoryId)
-          : null
-
-        const result = await getAutoTitleTemplate(
-          Number(formData.businessUnitGroupId),
-          Number(formData.categoryId),
-          subcatId
-        )
-
-        if (result.success && result.data && result.data.spoc_user_id) {
-          setFormData((prev) => ({
-            ...prev,
-            spocId: result.data.spoc_user_id.toString(),
-          }))
-        }
-      }
-    }
-
-    autoFillSpoc()
-  }, [formData.businessUnitGroupId, formData.categoryId, formData.subcategoryId])
+  // SPOC is auto-filled from Business Unit Group selection in handleBusinessUnitChange
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -176,11 +146,26 @@ export default function CreateTicketForm() {
   }
 
   const handleBusinessUnitChange = (value: string) => {
+    // Find the selected group to get SPOC
+    const selectedGroup = businessUnitGroups.find((bu) => bu.id.toString() === value)
+
+    // Find matching SPOC user by full_name
+    let spocId = ""
+    if (selectedGroup?.spoc_name) {
+      const spocUser = assignees.find(
+        (user) => user.full_name?.toLowerCase() === selectedGroup.spoc_name?.toLowerCase()
+      )
+      if (spocUser) {
+        spocId = spocUser.id.toString()
+      }
+    }
+
     setFormData((prev) => ({
       ...prev,
       businessUnitGroupId: value,
       categoryId: "",
       subcategoryId: "",
+      spocId: spocId,
     }))
   }
 
@@ -595,26 +580,6 @@ export default function CreateTicketForm() {
             emptyText="No team members found"
           />
         </div>
-
-        {formData.ticketType === "requirement" && (
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Product Release Name <span className="text-xs text-foreground-secondary font-normal">(For New Requirements)</span>
-            </label>
-            <Combobox
-              options={productReleases.map((release) => ({
-                value: release.display_name,
-                label: release.display_name,
-                subtitle: release.package_name,
-              }))}
-              value={formData.productReleaseName}
-              onChange={(value) => setFormData((prev) => ({ ...prev, productReleaseName: value }))}
-              placeholder="Select product release..."
-              searchPlaceholder="Search product releases..."
-              emptyText="No product releases found"
-            />
-          </div>
-        )}
 
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">

@@ -406,26 +406,8 @@ export default function UnifiedMasterDataV2() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      title="Add Mapping"
-                                      onClick={() =>
-                                        setEditMapping({
-                                          id: null,
-                                          business_unit_group_id: "",
-                                          category_id: category.id,
-                                          subcategory_id: subcat.id,
-                                          estimated_duration: "",
-                                          spoc_user_id: "",
-                                          auto_title_template: "",
-                                        })
-                                      }
-                                    >
-                                      <Plus className="w-3 h-3" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
                                       title="Edit Subcategory"
-                                      onClick={() => setEditSubcategory(subcat)}
+                                      onClick={() => setEditSubcategory({ ...subcat, category_name: category.name })}
                                     >
                                       <Edit className="w-3 h-3" />
                                     </Button>
@@ -453,6 +435,7 @@ export default function UnifiedMasterDataV2() {
                               setEditSubcategory({
                                 id: null,
                                 category_id: category.id,
+                                category_name: category.name,
                                 name: "",
                                 description: "",
                               })
@@ -518,24 +501,22 @@ export default function UnifiedMasterDataV2() {
 
       {editSubcategory && (
         <EditDialog
-          title={editSubcategory.id ? "Edit Subcategory" : "Add Subcategory"}
+          title={editSubcategory.id ? "Edit Sub category" : "Add Sub category"}
           fields={[
             {
-              name: "category_id",
+              name: "category_name",
               label: "Category",
-              type: "select",
-              required: true,
-              options: categories.map((cat) => ({ value: cat.id, label: cat.name })),
-              disabled: !!editSubcategory.category_id && !editSubcategory.id,
+              type: "text",
+              disabled: true,
             },
-            { name: "name", label: "Name", type: "text", required: true },
+            { name: "name", label: "Sub category", type: "text", required: true },
             { name: "description", label: "Description", type: "textarea" },
           ]}
           initialData={editSubcategory}
           onSave={(data) =>
             editSubcategory.id
               ? handleUpdateSubcategory(editSubcategory.id, data.name, data.description)
-              : handleCreateSubcategory(Number(data.category_id), data.name, data.description)
+              : handleCreateSubcategory(Number(editSubcategory.category_id), data.name, data.description)
           }
           onClose={() => setEditSubcategory(null)}
         />
