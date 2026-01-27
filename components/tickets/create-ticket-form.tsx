@@ -12,7 +12,6 @@ import {
   getBusinessUnitGroups,
   getCategories,
   getSubcategories,
-  getProjectNames,
 } from "@/lib/actions/master-data"
 import { Combobox } from "@/components/ui/combobox"
 
@@ -53,7 +52,6 @@ export default function CreateTicketForm() {
   const [userGroupId, setUserGroupId] = useState<string | null>(null)
 
   const [businessUnitGroups, setBusinessUnitGroups] = useState<any[]>([])
-  const [projects, setProjects] = useState<any[]>([])
   const [categories, setCategories] = useState<any[]>([])
   const [subcategories, setSubcategories] = useState<any[]>([])
   const [assignees, setAssignees] = useState<any[]>([])
@@ -86,22 +84,19 @@ export default function CreateTicketForm() {
 
   const loadInitialData = async () => {
     console.log("[v0] Loading initial data for create ticket form")
-    const [buResult, catResult, usersResult, projectsResult] = await Promise.all([
+    const [buResult, catResult, usersResult] = await Promise.all([
       getBusinessUnitGroups(),
       getCategories(),
       getUsers(),
-      getProjectNames(),
     ])
 
     console.log("[v0] Business Units:", buResult)
     console.log("[v0] Categories:", catResult)
     console.log("[v0] Users:", usersResult)
-    console.log("[v0] Projects:", projectsResult)
 
     if (buResult.success) setBusinessUnitGroups(buResult.data || [])
     if (catResult.success) setCategories(catResult.data || [])
     if (usersResult.success) setAssignees(usersResult.data || [])
-    if (projectsResult.success) setProjects(projectsResult.data || [])
 
     // If duplicating, load dependent data
     if (isDuplicate) {
@@ -203,25 +198,6 @@ export default function CreateTicketForm() {
       setFormData((prev) => ({
         ...prev,
         subcategoryId: value,
-      }))
-    }
-  }
-
-  const handleProjectChange = (value: string) => {
-    // Find the selected project to get auto-fill data
-    const selectedProject = projects.find((p) => p.id.toString() === value)
-
-    if (selectedProject && selectedProject.estimated_release_date) {
-      setFormData((prev) => ({
-        ...prev,
-        projectId: value,
-        estimatedReleaseDate: selectedProject.estimated_release_date,
-      }))
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        projectId: value,
-        estimatedReleaseDate: "",
       }))
     }
   }
@@ -418,45 +394,6 @@ export default function CreateTicketForm() {
             emptyText="No groups found"
           />
         </div>
-
-        {formData.ticketType === "requirement" && (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Project <span className="text-xs text-foreground-secondary font-normal">(For New Requirements)</span>
-              </label>
-              <Combobox
-                options={projects.map((proj) => ({
-                  value: proj.id.toString(),
-                  label: proj.name,
-                  subtitle: proj.estimated_release_date
-                    ? `Release: ${new Date(proj.estimated_release_date).toLocaleDateString()}`
-                    : "No release date",
-                }))}
-                value={formData.projectId}
-                onChange={handleProjectChange}
-                placeholder="Select a project..."
-                searchPlaceholder="Search projects..."
-                emptyText="No projects found"
-              />
-            </div>
-
-            {formData.estimatedReleaseDate && (
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Estimated Release Date
-                </label>
-                <input
-                  type="text"
-                  value={new Date(formData.estimatedReleaseDate).toLocaleDateString()}
-                  readOnly
-                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-surface text-foreground cursor-not-allowed text-sm"
-                  placeholder="Auto-populated from project"
-                />
-              </div>
-            )}
-          </>
-        )}
 
         {formData.ticketType === "requirement" ? (
           <>

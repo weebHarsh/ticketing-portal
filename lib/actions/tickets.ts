@@ -28,6 +28,8 @@ export async function getTickets(filters?: {
         sc.name as subcategory_name,
         bug.name as group_name,
         p.name as project_name,
+        closer.full_name as closed_by_name,
+        holder.full_name as hold_by_name,
         (SELECT COUNT(*) FROM attachments att WHERE att.ticket_id = t.id) as attachment_count
       FROM tickets t
       LEFT JOIN users u ON t.created_by = u.id
@@ -37,6 +39,8 @@ export async function getTickets(filters?: {
       LEFT JOIN subcategories sc ON t.subcategory_id = sc.id
       LEFT JOIN business_unit_groups bug ON t.business_unit_group_id = bug.id
       LEFT JOIN projects p ON t.project_id = p.id
+      LEFT JOIN users closer ON t.closed_by = closer.id
+      LEFT JOIN users holder ON t.hold_by = holder.id
       WHERE (t.is_deleted IS NULL OR t.is_deleted = FALSE)
       ORDER BY t.created_at DESC
     `
@@ -215,7 +219,7 @@ export async function createTicket(data: {
           await sendSpocNotificationEmail({
             spocEmail: spoc.email,
             spocName: spoc.full_name,
-            ticketId: ticketId,
+            ticketId: `#${result[0].id}`,
             ticketDbId: result[0].id,
             ticketTitle: data.title,
             description: data.description,
@@ -259,7 +263,9 @@ export async function updateTicketStatus(ticketId: number, status: string) {
           updated_at = CURRENT_TIMESTAMP,
           resolved_at = CASE WHEN ${status} = 'closed' THEN CURRENT_TIMESTAMP ELSE resolved_at END,
           closed_by = CASE WHEN ${status} = 'closed' THEN ${currentUser?.id || null} ELSE closed_by END,
-          closed_at = CASE WHEN ${status} = 'closed' THEN CURRENT_TIMESTAMP ELSE closed_at END
+          closed_at = CASE WHEN ${status} = 'closed' THEN CURRENT_TIMESTAMP ELSE closed_at END,
+          hold_by = CASE WHEN ${status} = 'hold' THEN ${currentUser?.id || null} ELSE hold_by END,
+          hold_at = CASE WHEN ${status} = 'hold' THEN CURRENT_TIMESTAMP ELSE hold_at END
       WHERE id = ${ticketId}
     `
 
@@ -276,7 +282,7 @@ export async function updateTicketStatus(ticketId: number, status: string) {
         sendStatusChangeEmail({
           recipientEmail: ticket.creator_email,
           recipientName: ticket.creator_name,
-          ticketId: ticket.ticket_id,
+          ticketId: `#${ticketId}`,
           ticketDbId: ticketId,
           ticketTitle: ticket.title,
           oldStatus,
@@ -290,7 +296,7 @@ export async function updateTicketStatus(ticketId: number, status: string) {
         sendStatusChangeEmail({
           recipientEmail: ticket.assignee_email,
           recipientName: ticket.assignee_name,
-          ticketId: ticket.ticket_id,
+          ticketId: `#${ticketId}`,
           ticketDbId: ticketId,
           ticketTitle: ticket.title,
           oldStatus,
@@ -463,7 +469,7 @@ export async function updateTicketAssignee(ticketId: number, assigneeId: number)
             await sendAssignmentEmail({
               assigneeEmail: assignee.email,
               assigneeName: assignee.full_name,
-              ticketId: ticket.ticket_id,
+              ticketId: `#${ticketId}`,
               ticketDbId: ticketId,
               ticketTitle: ticket.title,
               description: ticket.description || '',
@@ -482,6 +488,24 @@ export async function updateTicketAssignee(ticketId: number, assigneeId: number)
   } catch (error) {
     console.error("[v0] Error updating ticket assignee:", error)
     return { success: false, error: "Failed to update assignee" }
+  }
+}
+
+export async function updateTicketProject(ticketId: number, projectId: number | null) {
+  try {
+    await sql`
+      UPDATE tickets
+      SET project_id = ${projectId}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${ticketId}
+    `
+
+    revalidatePath("/tickets")
+    revalidatePath(`/tickets/${ticketId}`)
+
+    return { success: true }
+  } catch (error) {
+    console.error("[v0] Error updating ticket project:", error)
+    return { success: false, error: "Failed to update project" }
   }
 }
 

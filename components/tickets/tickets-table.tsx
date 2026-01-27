@@ -10,11 +10,14 @@ import {
   softDeleteTicket,
   updateTicketAssignee,
   updateTicketStatus,
+  updateTicketProject,
   getUsers,
 } from "@/lib/actions/tickets"
 import { getMyTeamMembers } from "@/lib/actions/my-team"
 import * as XLSX from "xlsx"
 import AssigneeModal from "./assignee-modal"
+import ProjectModal from "./project-modal"
+import { FolderKanban } from "lucide-react"
 
 interface Ticket {
   id: number
@@ -40,6 +43,10 @@ interface Ticket {
   project_id: number | null
   project_name: string | null
   estimated_release_date: string | null
+  closed_by_name: string | null
+  closed_at: string | null
+  hold_by_name: string | null
+  hold_at: string | null
 }
 
 interface User {
@@ -72,6 +79,10 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
   // Modal state for assignee selection
   const [isAssigneeModalOpen, setIsAssigneeModalOpen] = useState(false)
   const [selectedTicketForAssignment, setSelectedTicketForAssignment] = useState<Ticket | null>(null)
+
+  // Modal state for project selection
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false)
+  const [selectedTicketForProject, setSelectedTicketForProject] = useState<Ticket | null>(null)
 
   // Attachments dropdown state
   const [attachmentsDropdownOpen, setAttachmentsDropdownOpen] = useState<number | null>(null)
@@ -220,6 +231,31 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
     }
   }
 
+  const openProjectModal = (ticket: Ticket) => {
+    setSelectedTicketForProject(ticket)
+    setIsProjectModalOpen(true)
+  }
+
+  const handleProjectSelect = async (projectId: number | null) => {
+    if (selectedTicketForProject) {
+      const result = await updateTicketProject(selectedTicketForProject.id, projectId)
+      if (result.success) {
+        loadTickets()
+      } else {
+        alert("Failed to update project")
+      }
+    }
+  }
+
+  const canEditProject = (ticket: Ticket) => {
+    if (!currentUser) return false
+    const userId = Number(currentUser.id)
+    return (
+      userId === ticket.spoc_user_id ||
+      currentUser.role?.toLowerCase() === "admin"
+    )
+  }
+
   const canEditAssignee = (ticket: Ticket) => {
     if (!currentUser) return false
     const userId = Number(currentUser.id) // Ensure ID is a number for comparison
@@ -278,7 +314,7 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
   const handleExport = () => {
     // Prepare data for export
     const exportData = tickets.map((ticket, index) => ({
-      "#": index + 1,
+      "#": tickets.length - index,
       "Initiator": ticket.creator_name || "Unknown",
       "Group": ticket.group_name || "No Group",
       "Date": format(new Date(ticket.created_at), "MMM dd, yyyy"),
@@ -296,6 +332,10 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
       "Assignee": ticket.assignee_name || "Unassigned",
       "SPOC": ticket.spoc_name || "-",
       "Status": ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1),
+      "Closed By": ticket.closed_by_name || "-",
+      "Closed At": ticket.closed_at ? format(new Date(ticket.closed_at), "MMM dd, yyyy hh:mm a") : "-",
+      "Hold By": ticket.hold_by_name || "-",
+      "Hold At": ticket.hold_at ? format(new Date(ticket.hold_at), "MMM dd, yyyy hh:mm a") : "-",
       "Files": ticket.attachment_count || 0,
     }))
 
@@ -321,6 +361,10 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
       { wch: 20 }, // Assignee
       { wch: 15 }, // SPOC
       { wch: 12 }, // Status
+      { wch: 20 }, // Closed By
+      { wch: 20 }, // Closed At
+      { wch: 20 }, // Hold By
+      { wch: 20 }, // Hold At
       { wch: 8 },  // Files
     ]
 
@@ -401,19 +445,28 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                 }`}
               >
                 {/* Initiator Name and Group */}
-                <td className="px-3 py-2.5 whitespace-nowrap">
+                <td
+                  className="px-3 py-2.5 whitespace-nowrap cursor-pointer hover:text-primary"
+                  onClick={() => router.push(`/tickets/${ticket.id}`)}
+                >
                   <div className="text-sm font-medium text-foreground">{ticket.creator_name || "Unknown"}</div>
                   <div className="text-xs text-foreground-secondary">{ticket.group_name || "No Group"}</div>
                 </td>
 
                 {/* Date - Compact format */}
-                <td className="px-3 py-2.5 whitespace-nowrap">
+                <td
+                  className="px-3 py-2.5 whitespace-nowrap cursor-pointer hover:text-primary"
+                  onClick={() => router.push(`/tickets/${ticket.id}`)}
+                >
                   <div className="text-sm text-foreground">{format(new Date(ticket.created_at), "dd MMM yyyy")}</div>
                   <div className="text-xs text-foreground-secondary">{format(new Date(ticket.created_at), "hh:mm a")}</div>
                 </td>
 
                 {/* Type + Row Number */}
-                <td className="px-3 py-2.5 whitespace-nowrap">
+                <td
+                  className="px-3 py-2.5 whitespace-nowrap cursor-pointer"
+                  onClick={() => router.push(`/tickets/${ticket.id}`)}
+                >
                   <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
                     ticket.ticket_type === "requirement"
                       ? "bg-purple-100 text-purple-700"
@@ -421,11 +474,14 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                   }`}>
                     {ticket.ticket_type === "requirement" ? "Requirement" : "Support"}
                   </span>
-                  <div className="text-xs text-foreground-secondary mt-0.5">#{index + 1}</div>
+                  <div className="text-xs text-foreground-secondary mt-0.5">#{tickets.length - index}</div>
                 </td>
 
                 {/* Title (for Requirements) or Category/Subcategory (for Support) */}
-                <td className="px-3 py-2.5">
+                <td
+                  className="px-3 py-2.5 cursor-pointer hover:text-primary"
+                  onClick={() => router.push(`/tickets/${ticket.id}`)}
+                >
                   {ticket.ticket_type === "requirement" ? (
                     <div className="text-sm font-medium text-foreground">{ticket.title || "Untitled"}</div>
                   ) : (
@@ -446,14 +502,26 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                 {/* Project */}
                 <td className="px-3 py-2.5 whitespace-nowrap">
                   {ticket.project_name ? (
-                    <>
+                    <span
+                      className={`${canEditProject(ticket) ? "cursor-pointer hover:text-primary" : ""}`}
+                      onClick={() => canEditProject(ticket) && openProjectModal(ticket)}
+                    >
                       <div className="text-sm text-foreground">{ticket.project_name}</div>
                       {ticket.estimated_release_date && (
                         <div className="text-xs text-foreground-secondary">
                           {format(new Date(ticket.estimated_release_date), "dd MMM yyyy")}
                         </div>
                       )}
-                    </>
+                      {canEditProject(ticket) && <Edit className="w-3 h-3 inline ml-1 opacity-50" />}
+                    </span>
+                  ) : canEditProject(ticket) ? (
+                    <button
+                      onClick={() => openProjectModal(ticket)}
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium hover:bg-purple-200"
+                    >
+                      <FolderKanban className="w-3 h-3" />
+                      Select
+                    </button>
                   ) : (
                     <span className="text-sm text-muted-foreground">-</span>
                   )}
@@ -592,26 +660,26 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                 <td className="px-3 py-2.5">
                   <div className="flex items-center justify-center gap-0.5">
                     <button
-                      className="p-1 hover:bg-surface rounded transition-colors"
+                      className="p-1.5 hover:bg-primary/10 rounded transition-colors group"
                       title="View"
                       onClick={() => router.push(`/tickets/${ticket.id}`)}
                     >
-                      <Eye className="w-3.5 h-3.5 text-foreground-secondary" />
+                      <Eye className="w-4 h-4 text-foreground-secondary group-hover:text-primary" />
                     </button>
                     <button
-                      className="p-1 hover:bg-surface rounded transition-colors"
+                      className="p-1.5 hover:bg-primary/10 rounded transition-colors group"
                       title="Edit"
                       onClick={() => router.push(`/tickets/${ticket.id}/edit`)}
                     >
-                      <Edit className="w-3.5 h-3.5 text-foreground-secondary" />
+                      <Edit className="w-4 h-4 text-foreground-secondary group-hover:text-primary" />
                     </button>
                     {!ticket.is_deleted && (
                       <button
-                        className="p-1 hover:bg-red-50 rounded transition-colors"
+                        className="p-1.5 hover:bg-red-50 rounded transition-colors group"
                         title="Delete"
                         onClick={() => handleDelete(ticket.id)}
                       >
-                        <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                        <Trash2 className="w-4 h-4 text-red-400 group-hover:text-red-600" />
                       </button>
                     )}
                   </div>
@@ -638,6 +706,18 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
         onSelect={handleAssigneeSelect}
         currentAssigneeId={selectedTicketForAssignment?.assigned_to || null}
         ticketTitle={selectedTicketForAssignment?.title || ""}
+      />
+
+      {/* Project Modal */}
+      <ProjectModal
+        isOpen={isProjectModalOpen}
+        onClose={() => {
+          setIsProjectModalOpen(false)
+          setSelectedTicketForProject(null)
+        }}
+        onSelect={handleProjectSelect}
+        currentProjectId={selectedTicketForProject?.project_id || null}
+        ticketTitle={selectedTicketForProject?.title || ""}
       />
     </div>
   )
