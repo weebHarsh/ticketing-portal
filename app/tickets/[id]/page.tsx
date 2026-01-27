@@ -107,7 +107,7 @@ export default function TicketDetailPage() {
           </button>
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-poppins font-bold text-foreground">{ticket.ticket_id}</h1>
+              <h1 className="text-2xl font-poppins font-bold text-foreground">#{ticket.ticket_number}</h1>
               <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[ticket.status]}`}>
                 {ticket.status.toUpperCase()}
               </span>

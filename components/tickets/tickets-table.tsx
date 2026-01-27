@@ -249,6 +249,8 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
   }
 
   const canEditProject = (ticket: Ticket) => {
+    // Only allow project selection for requirement tickets, not support tickets
+    if (ticket.ticket_type !== "requirement") return false
     if (!currentUser) return false
     const userId = Number(currentUser.id)
     return (
@@ -500,9 +502,11 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                   )}
                 </td>
 
-                {/* Project */}
+                {/* Project - Only for requirement tickets */}
                 <td className="px-3 py-2.5 whitespace-nowrap">
-                  {ticket.project_name ? (
+                  {ticket.ticket_type === "support" ? (
+                    <span className="text-sm text-muted-foreground">-</span>
+                  ) : ticket.project_name ? (
                     <span
                       className={`${canEditProject(ticket) ? "cursor-pointer hover:text-primary" : ""}`}
                       onClick={() => canEditProject(ticket) && openProjectModal(ticket)}
