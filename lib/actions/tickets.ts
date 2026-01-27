@@ -5,6 +5,38 @@ import { revalidatePath } from "next/cache"
 import { getCurrentUser } from "./auth"
 import { sendSpocNotificationEmail, sendAssignmentEmail, sendStatusChangeEmail } from "@/lib/email"
 
+// Helper function to add audit log entry
+async function addAuditLog(params: {
+  ticketId: number
+  actionType: string
+  oldValue: string | null
+  newValue: string | null
+  performedBy: number | null
+  performedByName: string | null
+  notes?: string
+}) {
+  await sql`
+    INSERT INTO ticket_audit_log (ticket_id, action_type, old_value, new_value, performed_by, performed_by_name, notes)
+    VALUES (${params.ticketId}, ${params.actionType}, ${params.oldValue}, ${params.newValue}, ${params.performedBy}, ${params.performedByName}, ${params.notes || null})
+  `
+}
+
+// Get audit log for a ticket
+export async function getTicketAuditLog(ticketId: number) {
+  try {
+    const result = await sql`
+      SELECT *
+      FROM ticket_audit_log
+      WHERE ticket_id = ${ticketId}
+      ORDER BY created_at DESC
+    `
+    return { success: true, data: result }
+  } catch (error) {
+    console.error("[v0] Error fetching ticket audit log:", error)
+    return { success: false, error: "Failed to fetch audit log", data: [] }
+  }
+}
+
 export async function getTickets(filters?: {
   status?: string
   assignee?: string
@@ -210,6 +242,16 @@ export async function createTicket(data: {
     revalidatePath("/dashboard")
     revalidatePath("/tickets")
 
+    // Log ticket creation to audit trail
+    await addAuditLog({
+      ticketId: result[0].id,
+      actionType: 'created',
+      oldValue: null,
+      newValue: `Ticket #${result[0].ticket_number} created`,
+      performedBy: currentUser.id,
+      performedByName: currentUser.full_name || currentUser.email,
+    })
+
     // Send email notification to SPOC
     if (data.spocId) {
       try {
@@ -276,6 +318,18 @@ export async function updateTicketStatus(ticketId: number, status: string) {
 
     revalidatePath("/dashboard")
     revalidatePath("/tickets")
+
+    // Log the status change to audit trail
+    if (oldStatus !== status) {
+      await addAuditLog({
+        ticketId,
+        actionType: 'status_change',
+        oldValue: oldStatus,
+        newValue: status,
+        performedBy: currentUser?.id || null,
+        performedByName: currentUser?.full_name || 'System',
+      })
+    }
 
     // Send email notifications for status change
     if (ticketBefore.length > 0 && oldStatus !== status) {
@@ -442,10 +496,12 @@ export async function updateTicketAssignee(ticketId: number, assigneeId: number)
   try {
     const currentUser = await getCurrentUser()
 
-    // Get ticket info before update
+    // Get ticket info before update including old assignee name
     const ticketBefore = await sql`
-      SELECT t.ticket_id, t.ticket_number, t.title, t.description, t.priority, t.assigned_to
+      SELECT t.ticket_id, t.ticket_number, t.title, t.description, t.priority, t.assigned_to,
+             a.full_name as old_assignee_name
       FROM tickets t
+      LEFT JOIN users a ON t.assigned_to = a.id
       WHERE t.id = ${ticketId}
     `
 
@@ -458,19 +514,33 @@ export async function updateTicketAssignee(ticketId: number, assigneeId: number)
     revalidatePath("/tickets")
     revalidatePath(`/tickets/${ticketId}`)
 
-    // Send email notification to new assignee
-    if (assigneeId && ticketBefore.length > 0) {
+    // Send email notification to new assignee and log audit
+    if (ticketBefore.length > 0) {
       const ticket = ticketBefore[0]
       const oldAssigneeId = ticket.assigned_to
 
-      // Only send email if assignee actually changed
+      // Only process if assignee actually changed
       if (oldAssigneeId !== assigneeId) {
-        try {
-          const assigneeResult = await sql`
-            SELECT email, full_name FROM users WHERE id = ${assigneeId}
-          `
-          if (assigneeResult.length > 0) {
-            const assignee = assigneeResult[0]
+        // Get new assignee name for audit log
+        const newAssigneeResult = await sql`
+          SELECT email, full_name FROM users WHERE id = ${assigneeId}
+        `
+        const newAssigneeName = newAssigneeResult.length > 0 ? newAssigneeResult[0].full_name : null
+
+        // Log to audit trail
+        await addAuditLog({
+          ticketId,
+          actionType: 'assignment_change',
+          oldValue: ticket.old_assignee_name || 'Unassigned',
+          newValue: newAssigneeName || 'Unassigned',
+          performedBy: currentUser?.id || null,
+          performedByName: currentUser?.full_name || 'System',
+        })
+
+        // Send email notification
+        if (newAssigneeResult.length > 0) {
+          const assignee = newAssigneeResult[0]
+          try {
             await sendAssignmentEmail({
               assigneeEmail: assignee.email,
               assigneeName: assignee.full_name,
@@ -481,10 +551,10 @@ export async function updateTicketAssignee(ticketId: number, assigneeId: number)
               priority: ticket.priority,
               assignedByName: currentUser?.full_name || 'System',
             })
+          } catch (emailError) {
+            console.error("[Email] Failed to send assignment email:", emailError)
+            // Don't fail the update if email fails
           }
-        } catch (emailError) {
-          console.error("[Email] Failed to send assignment email:", emailError)
-          // Don't fail the update if email fails
         }
       }
     }
@@ -498,11 +568,42 @@ export async function updateTicketAssignee(ticketId: number, assigneeId: number)
 
 export async function updateTicketProject(ticketId: number, projectId: number | null) {
   try {
+    const currentUser = await getCurrentUser()
+
+    // Get old project name
+    const ticketBefore = await sql`
+      SELECT t.project_id, p.name as old_project_name
+      FROM tickets t
+      LEFT JOIN projects p ON t.project_id = p.id
+      WHERE t.id = ${ticketId}
+    `
+
     await sql`
       UPDATE tickets
       SET project_id = ${projectId}, updated_at = CURRENT_TIMESTAMP
       WHERE id = ${ticketId}
     `
+
+    // Get new project name and log to audit
+    if (ticketBefore.length > 0) {
+      const oldProjectId = ticketBefore[0].project_id
+      if (oldProjectId !== projectId) {
+        let newProjectName = null
+        if (projectId) {
+          const projectResult = await sql`SELECT name FROM projects WHERE id = ${projectId}`
+          newProjectName = projectResult.length > 0 ? projectResult[0].name : null
+        }
+
+        await addAuditLog({
+          ticketId,
+          actionType: 'project_change',
+          oldValue: ticketBefore[0].old_project_name || 'None',
+          newValue: newProjectName || 'None',
+          performedBy: currentUser?.id || null,
+          performedByName: currentUser?.full_name || 'System',
+        })
+      }
+    }
 
     revalidatePath("/tickets")
     revalidatePath(`/tickets/${ticketId}`)

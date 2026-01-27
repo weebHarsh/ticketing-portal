@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import DashboardLayout from "@/components/layout/dashboard-layout"
-import { ArrowLeft, Edit, MessageSquare, Paperclip, Clock, User, Calendar, Tag, Download, FileText, ListChecks, CheckCircle2 } from "lucide-react"
-import { getTicketById, updateTicketStatus, addComment } from "@/lib/actions/tickets"
+import { ArrowLeft, Edit, MessageSquare, Paperclip, Clock, User, Calendar, Tag, Download, FileText, ListChecks, CheckCircle2, History, RefreshCw, UserPlus, FolderKanban, PauseCircle, PlayCircle, XCircle, PlusCircle } from "lucide-react"
+import { getTicketById, updateTicketStatus, addComment, getTicketAuditLog } from "@/lib/actions/tickets"
 import { getSubcategoryDetails } from "@/lib/actions/master-data"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ export default function TicketDetailPage() {
   const ticketId = params.id as string
   const [ticket, setTicket] = useState<any>(null)
   const [closureSteps, setClosureSteps] = useState<string | null>(null)
+  const [auditLog, setAuditLog] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [newComment, setNewComment] = useState("")
   const [addingComment, setAddingComment] = useState(false)
@@ -38,6 +39,11 @@ export default function TicketDetailPage() {
         if (subcatResult.success && subcatResult.data?.closure_steps) {
           setClosureSteps(subcatResult.data.closure_steps)
         }
+      }
+      // Fetch audit log
+      const auditResult = await getTicketAuditLog(Number(ticketId))
+      if (auditResult.success) {
+        setAuditLog(auditResult.data || [])
       }
     }
     setLoading(false)
@@ -337,35 +343,78 @@ export default function TicketDetailPage() {
               </div>
             </div>
 
-            {/* Closure Audit Trail */}
-            {ticket.status === "closed" && (ticket.closed_by || ticket.closed_at) && (
+            {/* Activity History / Audit Trail */}
+            {auditLog.length > 0 && (
               <div className="bg-white border border-border rounded-xl p-6">
                 <h3 className="font-poppins font-semibold text-foreground mb-4 flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  Closure Information
+                  <History className="w-5 h-5 text-primary" />
+                  Activity History
                 </h3>
-                <div className="space-y-4">
-                  {ticket.closed_by_name && (
-                    <div className="flex items-start gap-3">
-                      <User className="w-5 h-5 text-foreground-secondary mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-xs text-foreground-secondary">Closed By</p>
-                        <p className="text-sm font-medium text-foreground">{ticket.closed_by_name}</p>
-                      </div>
-                    </div>
-                  )}
+                <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                  {auditLog.map((log: any) => {
+                    // Determine icon and color based on action type
+                    let icon = <RefreshCw className="w-4 h-4" />
+                    let iconBg = "bg-gray-100 text-gray-600"
+                    let actionText = ""
 
-                  {ticket.closed_at && (
-                    <div className="flex items-start gap-3">
-                      <Calendar className="w-5 h-5 text-foreground-secondary mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-xs text-foreground-secondary">Closed At</p>
-                        <p className="text-sm font-medium text-foreground">
-                          {format(new Date(ticket.closed_at), "MMM dd, yyyy HH:mm")}
-                        </p>
+                    if (log.action_type === 'created') {
+                      icon = <PlusCircle className="w-4 h-4" />
+                      iconBg = "bg-blue-100 text-blue-600"
+                      actionText = "created this ticket"
+                    } else if (log.action_type === 'status_change') {
+                      if (log.new_value === 'closed') {
+                        icon = <CheckCircle2 className="w-4 h-4" />
+                        iconBg = "bg-green-100 text-green-600"
+                        actionText = `closed the ticket`
+                      } else if (log.new_value === 'hold') {
+                        icon = <PauseCircle className="w-4 h-4" />
+                        iconBg = "bg-yellow-100 text-yellow-600"
+                        actionText = `put the ticket on hold`
+                      } else if (log.new_value === 'open') {
+                        icon = <PlayCircle className="w-4 h-4" />
+                        iconBg = "bg-blue-100 text-blue-600"
+                        actionText = log.old_value === 'closed' ? `reopened the ticket` : log.old_value === 'hold' ? `removed hold from the ticket` : `opened the ticket`
+                      } else {
+                        actionText = `changed status from ${log.old_value} to ${log.new_value}`
+                      }
+                    } else if (log.action_type === 'assignment_change') {
+                      icon = <UserPlus className="w-4 h-4" />
+                      iconBg = "bg-purple-100 text-purple-600"
+                      actionText = `assigned ticket to ${log.new_value}`
+                      if (log.old_value && log.old_value !== 'Unassigned') {
+                        actionText = `reassigned ticket from ${log.old_value} to ${log.new_value}`
+                      }
+                    } else if (log.action_type === 'project_change') {
+                      icon = <FolderKanban className="w-4 h-4" />
+                      iconBg = "bg-indigo-100 text-indigo-600"
+                      if (log.new_value === 'None') {
+                        actionText = `removed project assignment`
+                      } else if (log.old_value === 'None') {
+                        actionText = `assigned to project ${log.new_value}`
+                      } else {
+                        actionText = `moved to project ${log.new_value}`
+                      }
+                    } else {
+                      actionText = `${log.action_type}: ${log.new_value || ''}`
+                    }
+
+                    return (
+                      <div key={log.id} className="flex items-start gap-3 py-2 border-b border-border/50 last:border-0">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${iconBg}`}>
+                          {icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-foreground">
+                            <span className="font-medium">{log.performed_by_name || 'System'}</span>
+                            {' '}{actionText}
+                          </p>
+                          <p className="text-xs text-foreground-secondary mt-0.5">
+                            {format(new Date(log.created_at), "MMM dd, yyyy 'at' HH:mm")}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )
+                  })}
                 </div>
               </div>
             )}
