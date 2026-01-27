@@ -167,6 +167,10 @@ export async function createTicket(data: {
       return { success: false, error: "User not authenticated" }
     }
 
+    // Get next sequential ticket number
+    const maxResult = await sql`SELECT COALESCE(MAX(ticket_number), 0) as max_num FROM tickets`
+    const nextTicketNumber = (maxResult[0]?.max_num || 0) + 1
+
     const dateStr = new Date().toISOString().slice(0, 7).replace("-", "")
     const randomNum = Math.floor(Math.random() * 100000)
       .toString()
@@ -175,13 +179,14 @@ export async function createTicket(data: {
 
     const result = await sql`
       INSERT INTO tickets (
-        ticket_id, title, description, ticket_type, priority,
+        ticket_id, ticket_number, title, description, ticket_type, priority,
         status, created_by, assigned_to, spoc_user_id,
         business_unit_group_id, project_name, project_id, category_id, subcategory_id,
         estimated_duration, product_release_name, estimated_release_date
       )
       VALUES (
         ${ticketId},
+        ${nextTicketNumber},
         ${data.title},
         ${data.description},
         ${data.ticketType},
@@ -219,7 +224,7 @@ export async function createTicket(data: {
           await sendSpocNotificationEmail({
             spocEmail: spoc.email,
             spocName: spoc.full_name,
-            ticketId: `#${result[0].id}`,
+            ticketId: `#${result[0].ticket_number}`,
             ticketDbId: result[0].id,
             ticketTitle: data.title,
             description: data.description,
@@ -282,7 +287,7 @@ export async function updateTicketStatus(ticketId: number, status: string) {
         sendStatusChangeEmail({
           recipientEmail: ticket.creator_email,
           recipientName: ticket.creator_name,
-          ticketId: `#${ticketId}`,
+          ticketId: `#${ticket.ticket_number}`,
           ticketDbId: ticketId,
           ticketTitle: ticket.title,
           oldStatus,
@@ -296,7 +301,7 @@ export async function updateTicketStatus(ticketId: number, status: string) {
         sendStatusChangeEmail({
           recipientEmail: ticket.assignee_email,
           recipientName: ticket.assignee_name,
-          ticketId: `#${ticketId}`,
+          ticketId: `#${ticket.ticket_number}`,
           ticketDbId: ticketId,
           ticketTitle: ticket.title,
           oldStatus,
@@ -439,7 +444,7 @@ export async function updateTicketAssignee(ticketId: number, assigneeId: number)
 
     // Get ticket info before update
     const ticketBefore = await sql`
-      SELECT t.ticket_id, t.title, t.description, t.priority, t.assigned_to
+      SELECT t.ticket_id, t.ticket_number, t.title, t.description, t.priority, t.assigned_to
       FROM tickets t
       WHERE t.id = ${ticketId}
     `
@@ -469,7 +474,7 @@ export async function updateTicketAssignee(ticketId: number, assigneeId: number)
             await sendAssignmentEmail({
               assigneeEmail: assignee.email,
               assigneeName: assignee.full_name,
-              ticketId: `#${ticketId}`,
+              ticketId: `#${ticket.ticket_number}`,
               ticketDbId: ticketId,
               ticketTitle: ticket.title,
               description: ticket.description || '',

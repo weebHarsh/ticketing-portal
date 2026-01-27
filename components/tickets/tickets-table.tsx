@@ -22,6 +22,7 @@ import { FolderKanban } from "lucide-react"
 interface Ticket {
   id: number
   ticket_id: string
+  ticket_number: number
   title: string
   description: string
   category_name: string | null
@@ -313,8 +314,8 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
 
   const handleExport = () => {
     // Prepare data for export
-    const exportData = tickets.map((ticket, index) => ({
-      "#": tickets.length - index,
+    const exportData = tickets.map((ticket) => ({
+      "#": ticket.ticket_number,
       "Initiator": ticket.creator_name || "Unknown",
       "Group": ticket.group_name || "No Group",
       "Date": format(new Date(ticket.created_at), "MMM dd, yyyy"),
@@ -474,7 +475,7 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                   }`}>
                     {ticket.ticket_type === "requirement" ? "Requirement" : "Support"}
                   </span>
-                  <div className="text-xs text-foreground-secondary mt-0.5">#{tickets.length - index}</div>
+                  <div className="text-xs text-foreground-secondary mt-0.5">#{ticket.ticket_number}</div>
                 </td>
 
                 {/* Title (for Requirements) or Category/Subcategory (for Support) */}
