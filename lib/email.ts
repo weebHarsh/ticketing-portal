@@ -153,11 +153,16 @@ function getStatusChangeHtml(data: {
   newStatus: string
   changedBy: string
   ticketUrl: string
+  remarks?: string
 }) {
   const statusColors: Record<string, string> = {
     open: '#3b82f6',
     closed: '#10b981',
     hold: '#f59e0b',
+    'on-hold': '#f59e0b',
+    resolved: '#10b981',
+    returned: '#f97316',
+    deleted: '#6b7280',
   }
 
   return `
@@ -192,6 +197,12 @@ function getStatusChangeHtml(data: {
             <span style="background: ${statusColors[data.newStatus] || '#6b7280'}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; text-transform: uppercase;">${data.newStatus}</span>
           </td>
         </tr>
+        ${data.remarks ? `
+        <tr>
+          <td style="padding: 8px 0; color: #6b7280;">Remarks:</td>
+          <td style="padding: 8px 0; font-style: italic;">"${data.remarks}"</td>
+        </tr>
+        ` : ''}
       </table>
     </div>
 
@@ -300,6 +311,7 @@ export async function sendStatusChangeEmail(data: {
   oldStatus: string
   newStatus: string
   changedByName: string
+  remarks?: string
 }): Promise<EmailResult> {
   if (!transporter) {
     console.log('[Email] Gmail SMTP not configured - skipping status change email')
@@ -321,6 +333,7 @@ export async function sendStatusChangeEmail(data: {
         newStatus: data.newStatus,
         changedBy: data.changedByName,
         ticketUrl,
+        remarks: data.remarks,
       }),
     })
 

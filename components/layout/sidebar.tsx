@@ -2,7 +2,8 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { TicketIcon, BarChart3, Settings, Users, LogOut, X, Home, Plus, Database, UserCog } from "lucide-react"
+import { TicketIcon, BarChart3, Settings, Users, LogOut, X, Home, Plus, Database, UserCog, FileText, Trash2, ChevronDown, ChevronRight } from "lucide-react"
+import { useState, useEffect } from "react"
 
 interface SidebarProps {
   isOpen: boolean
@@ -12,6 +13,14 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const [adminExpanded, setAdminExpanded] = useState(false)
+
+  // Auto-expand admin section when on admin pages
+  useEffect(() => {
+    if (pathname.startsWith("/admin")) {
+      setAdminExpanded(true)
+    }
+  }, [pathname])
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -21,7 +30,12 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     { href: "/teams", label: "Teams", icon: Users },
     { href: "/users", label: "User Management", icon: UserCog },
     { href: "/master-data", label: "Masters", icon: Database },
-    { href: "/admin", label: "Admin", icon: Settings },
+  ]
+
+  const adminItems = [
+    { href: "/admin", label: "Settings", icon: Settings },
+    { href: "/admin/reports", label: "Reports", icon: FileText },
+    { href: "/admin/tickets", label: "Deleted Tickets", icon: Trash2 },
   ]
 
   const handleLogout = () => {
@@ -82,6 +96,43 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                 <span className="text-sm font-medium">{label}</span>
               </Link>
             ))}
+
+            {/* Admin Section */}
+            <div className="pt-2">
+              <button
+                onClick={() => setAdminExpanded(!adminExpanded)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all ${
+                  pathname.startsWith("/admin") ? "bg-primary/10 text-primary" : "text-foreground hover:bg-surface"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Settings className="w-5 h-5" />
+                  <span className="text-sm font-medium">Admin</span>
+                </div>
+                {adminExpanded ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
+              </button>
+              {adminExpanded && (
+                <div className="ml-4 mt-1 space-y-1">
+                  {adminItems.map(({ href, label, icon: Icon }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      onClick={() => setIsOpen(false)}
+                      className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
+                        pathname === href ? "bg-primary text-white" : "text-foreground hover:bg-surface"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span className="text-sm">{label}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           </nav>
 
           {/* Logout */}

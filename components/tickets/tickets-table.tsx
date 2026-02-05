@@ -28,7 +28,7 @@ interface Ticket {
   category_name: string | null
   subcategory_name: string | null
   ticket_type: "support" | "requirement"
-  status: "open" | "closed" | "hold"
+  status: "open" | "closed" | "hold" | "on-hold" | "resolved" | "returned" | "deleted"
   created_at: string
   created_by: number
   creator_name: string | null
@@ -36,6 +36,8 @@ interface Ticket {
   assigned_to: number | null
   spoc_name: string | null
   spoc_user_id: number | null
+  spoc_group_name: string | null
+  assignee_group_name: string | null
   estimated_duration: string
   is_deleted: boolean
   attachment_count: number
@@ -48,6 +50,10 @@ interface Ticket {
   closed_at: string | null
   hold_by_name: string | null
   hold_at: string | null
+  parent_ticket_id: number | null
+  is_parent: boolean
+  child_count: number
+  parent_ticket_number: number | null
 }
 
 interface User {
@@ -308,10 +314,14 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
     setLoadingAttachments(false)
   }
 
-  const statusColor = {
+  const statusColor: Record<string, string> = {
     open: "bg-blue-100 text-blue-700",
     closed: "bg-green-100 text-green-700",
     hold: "bg-yellow-100 text-yellow-700",
+    "on-hold": "bg-yellow-100 text-yellow-700",
+    resolved: "bg-emerald-100 text-emerald-700",
+    returned: "bg-orange-100 text-orange-700",
+    deleted: "bg-gray-100 text-gray-500",
   }
 
   const handleExport = () => {
@@ -444,7 +454,9 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
               <tr
                 key={ticket.id}
                 className={`hover:bg-surface transition-colors ${
-                  ticket.is_deleted ? "opacity-50 bg-gray-50" : ""
+                  ticket.status === "deleted" || ticket.is_deleted
+                    ? "opacity-50 bg-gradient-to-r from-gray-100 to-gray-200 pointer-events-none"
+                    : ""
                 }`}
               >
                 {/* Initiator Name and Group */}
@@ -546,19 +558,27 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
 
                 {/* SPOC */}
                 <td className="px-3 py-2.5 whitespace-nowrap">
-                  <span className="text-sm text-foreground">{ticket.spoc_name || "-"}</span>
+                  <div className="text-sm font-medium text-foreground">{ticket.spoc_name || "-"}</div>
+                  {ticket.spoc_group_name && (
+                    <div className="text-xs text-foreground-secondary">{ticket.spoc_group_name}</div>
+                  )}
                 </td>
 
                 {/* Assignee */}
                 <td className="px-3 py-2.5 whitespace-nowrap">
                   {ticket.assignee_name ? (
-                    <span
-                      className={`text-sm font-medium text-foreground ${canEditAssignee(ticket) ? "cursor-pointer hover:text-primary" : ""}`}
+                    <div
+                      className={`${canEditAssignee(ticket) ? "cursor-pointer hover:text-primary" : ""}`}
                       onClick={() => canEditAssignee(ticket) && openAssigneeModal(ticket)}
                     >
-                      {ticket.assignee_name}
-                      {canEditAssignee(ticket) && <Edit className="w-3 h-3 inline ml-1 opacity-50" />}
-                    </span>
+                      <div className="text-sm font-medium text-foreground">
+                        {ticket.assignee_name}
+                        {canEditAssignee(ticket) && <Edit className="w-3 h-3 inline ml-1 opacity-50" />}
+                      </div>
+                      {ticket.assignee_group_name && (
+                        <div className="text-xs text-foreground-secondary">{ticket.assignee_group_name}</div>
+                      )}
+                    </div>
                   ) : canEditAssignee(ticket) ? (
                     <button
                       onClick={() => openAssigneeModal(ticket)}
@@ -574,25 +594,33 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
 
                 {/* Status */}
                 <td className="px-3 py-2.5 whitespace-nowrap">
-                  {canEditStatus(ticket) ? (
+                  {canEditStatus(ticket) && ticket.status !== "deleted" ? (
                     <select
                       value={ticket.status}
                       onChange={(e) => handleStatusChange(ticket.id, e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
                       className={`px-2 py-1 rounded text-xs font-medium border focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer ${
                         ticket.status === "open"
                           ? "bg-blue-50 text-blue-700 border-blue-200"
                           : ticket.status === "closed"
                           ? "bg-green-50 text-green-700 border-green-200"
+                          : ticket.status === "resolved"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : ticket.status === "returned"
+                          ? "bg-orange-50 text-orange-700 border-orange-200"
                           : "bg-yellow-50 text-yellow-700 border-yellow-200"
                       }`}
                     >
                       <option value="open">Open</option>
+                      <option value="on-hold">On-Hold</option>
+                      <option value="resolved">Resolved</option>
                       <option value="closed">Closed</option>
-                      <option value="hold">On-Hold</option>
+                      <option value="returned">Returned</option>
                     </select>
                   ) : (
                     <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${statusColor[ticket.status] || statusColor["open"]}`}>
-                      {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
+                      {ticket.status === "on-hold" ? "On-Hold" : ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
+                      {ticket.status === "deleted" && " (Deleted)"}
                     </span>
                   )}
                 </td>
@@ -664,28 +692,27 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                 {/* Actions */}
                 <td className="px-3 py-2.5">
                   <div className="flex items-center justify-center gap-0.5">
-                    <button
-                      className="p-1.5 hover:bg-primary/10 rounded transition-colors group"
-                      title="View"
-                      onClick={() => router.push(`/tickets/${ticket.id}`)}
-                    >
-                      <Eye className="w-4 h-4 text-foreground-secondary group-hover:text-primary" />
-                    </button>
-                    <button
-                      className="p-1.5 hover:bg-primary/10 rounded transition-colors group"
-                      title="Edit"
-                      onClick={() => router.push(`/tickets/${ticket.id}/edit`)}
-                    >
-                      <Edit className="w-4 h-4 text-foreground-secondary group-hover:text-primary" />
-                    </button>
-                    {!ticket.is_deleted && (
+                    {ticket.status !== "deleted" && !ticket.is_deleted && (
                       <button
-                        className="p-1.5 hover:bg-red-50 rounded transition-colors group"
-                        title="Delete"
-                        onClick={() => handleDelete(ticket.id)}
+                        className="p-1.5 hover:bg-primary/10 rounded transition-colors group"
+                        title="Edit"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          router.push(`/tickets/${ticket.id}/edit`)
+                        }}
                       >
-                        <Trash2 className="w-4 h-4 text-red-400 group-hover:text-red-600" />
+                        <Edit className="w-4 h-4 text-foreground-secondary group-hover:text-primary" />
                       </button>
+                    )}
+                    {ticket.parent_ticket_id && (
+                      <span className="text-xs text-muted-foreground ml-1" title={`Sub-ticket of #${ticket.parent_ticket_number}`}>
+                        (Sub)
+                      </span>
+                    )}
+                    {ticket.is_parent && ticket.child_count > 0 && (
+                      <span className="text-xs text-purple-600 ml-1" title={`Has ${ticket.child_count} sub-ticket(s)`}>
+                        ({ticket.child_count})
+                      </span>
                     )}
                   </div>
                 </td>
