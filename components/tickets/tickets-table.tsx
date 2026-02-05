@@ -470,9 +470,18 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
               <p className="mt-2"><strong>Filters Applied:</strong></p>
               <pre>{JSON.stringify(filters, null, 2)}</pre>
               <p className="mt-2 text-red-600">
-                <strong>Tip:</strong> If user ID is wrong, try logging out and back in.
-                Check browser console (F12) for detailed logs.
+                <strong>Tip:</strong> If user ID is wrong, click the button below to clear cache and re-login.
               </p>
+              <button
+                onClick={() => {
+                  localStorage.clear()
+                  document.cookie = 'user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+                  window.location.href = '/login'
+                }}
+                className="mt-2 px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
+              >
+                Clear Cache & Re-login
+              </button>
             </div>
           )}
         </div>
