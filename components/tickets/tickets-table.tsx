@@ -134,12 +134,43 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
   const loadTickets = async () => {
     setIsLoading(true)
     const result = await getTickets(filters)
-    if (result.success) {
-      let ticketsData = result.data
+
+    console.log('[TicketsTable] loadTickets called')
+    console.log('[TicketsTable] currentUser:', JSON.stringify(currentUser, null, 2))
+    console.log('[TicketsTable] filters:', JSON.stringify(filters, null, 2))
+    console.log('[TicketsTable] getTickets result.success:', result.success)
+    console.log('[TicketsTable] getTickets result.data length:', result.data?.length || 0)
+
+    if (result.success && result.data) {
+      let ticketsData = Array.isArray(result.data) ? result.data : []
+
+      console.log('[TicketsTable] Initial tickets count:', ticketsData.length)
+      if (ticketsData.length > 0) {
+        console.log('[TicketsTable] Sample ticket:', JSON.stringify({
+          id: ticketsData[0].id,
+          spoc_user_id: ticketsData[0].spoc_user_id,
+          created_by: ticketsData[0].created_by,
+          assigned_to: ticketsData[0].assigned_to,
+        }, null, 2))
+      }
 
       // Filter tickets based on user role and team settings
-      if (currentUser && currentUser.role?.toLowerCase() !== "admin") {
+      // Only filter if user is logged in and is not admin
+      const shouldFilter = currentUser && currentUser.id && currentUser.role?.toLowerCase() !== "admin"
+      console.log('[TicketsTable] shouldFilter:', shouldFilter)
+      console.log('[TicketsTable] currentUser.role:', currentUser?.role)
+
+      if (shouldFilter) {
         const userId = Number(currentUser.id)
+        console.log('[TicketsTable] userId for filtering:', userId)
+
+        // Skip filtering if userId is invalid
+        if (isNaN(userId) || userId <= 0) {
+          console.log('[TicketsTable] Invalid userId, skipping filter')
+          setTickets(ticketsData)
+          setIsLoading(false)
+          return
+        }
 
         // If "My Team" filter is active, include team members' tickets
         if (filters?.myTeam) {
@@ -148,6 +179,8 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
           const teamMemberIds = teamResult.success && teamResult.data
             ? teamResult.data.map((m: any) => Number(m.id))
             : []
+
+          console.log('[TicketsTable] Team member IDs:', teamMemberIds)
 
           // Include tickets where:
           // - User is SPOC, creator, or assignee
@@ -161,15 +194,27 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
           )
         } else {
           // Default: show only user's own tickets
-          ticketsData = ticketsData.filter((ticket: Ticket) =>
-            Number(ticket.spoc_user_id) === userId ||
-            Number(ticket.created_by) === userId ||
-            Number(ticket.assigned_to) === userId
-          )
+          const beforeFilter = ticketsData.length
+          ticketsData = ticketsData.filter((ticket: Ticket) => {
+            const spocMatch = Number(ticket.spoc_user_id) === userId
+            const creatorMatch = Number(ticket.created_by) === userId
+            const assigneeMatch = Number(ticket.assigned_to) === userId
+            const matches = spocMatch || creatorMatch || assigneeMatch
+
+            if (matches) {
+              console.log(`[TicketsTable] Ticket ${ticket.id} matches: spoc=${spocMatch}, creator=${creatorMatch}, assignee=${assigneeMatch}`)
+            }
+
+            return matches
+          })
+          console.log(`[TicketsTable] Filter result: ${beforeFilter} -> ${ticketsData.length} tickets`)
         }
       }
 
+      console.log('[TicketsTable] Final tickets count:', ticketsData.length)
       setTickets(ticketsData)
+    } else {
+      console.log('[TicketsTable] No data or error:', result.error)
     }
     setIsLoading(false)
   }
