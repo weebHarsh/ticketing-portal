@@ -121,6 +121,26 @@ export async function getTickets(filters?: {
       filteredTickets = filteredTickets.filter(t => new Date(t.created_at) <= toDate)
     }
 
+    // My Team filter - show tickets from users in the same team(s) as the current user
+    if (filters?.myTeam && filters?.userId) {
+      // Get team members for the current user
+      const teamMembers = await sql`
+        SELECT DISTINCT tm2.user_id
+        FROM team_members tm1
+        JOIN team_members tm2 ON tm1.team_id = tm2.team_id
+        WHERE tm1.user_id = ${filters.userId}
+      `
+      const teamMemberIds = teamMembers.map((m: any) => m.user_id)
+
+      if (teamMemberIds.length > 0) {
+        filteredTickets = filteredTickets.filter(t =>
+          teamMemberIds.includes(t.created_by) ||
+          teamMemberIds.includes(t.assigned_to) ||
+          teamMemberIds.includes(t.spoc_user_id)
+        )
+      }
+    }
+
     return { success: true, data: filteredTickets }
   } catch (error) {
     console.error("[v0] Error fetching tickets:", error)

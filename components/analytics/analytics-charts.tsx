@@ -96,14 +96,14 @@ export default function AnalyticsCharts() {
           </ResponsiveContainer>
         </div>
 
-        {/* Tickets by Subcategory (Top 10) */}
+        {/* Top 10 Categories */}
         <div className="bg-white border border-border rounded-xl p-6">
-          <h3 className="font-poppins font-bold text-foreground mb-4">Top 10 Subcategories</h3>
+          <h3 className="font-poppins font-bold text-foreground mb-4">Top 10 Categories</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data.ticketsBySubcategory} layout="vertical">
+            <BarChart data={data.ticketsByCategory?.slice(0, 10) || []} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" />
-              <YAxis dataKey="subcategory" type="category" width={120} />
+              <YAxis dataKey="category" type="category" width={120} />
               <Tooltip />
               <Bar dataKey="ticket_count" fill="#3b82f6" />
             </BarChart>
