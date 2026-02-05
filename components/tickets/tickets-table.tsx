@@ -153,18 +153,18 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
           // - User is SPOC, creator, or assignee
           // - OR team members are creator or assignee
           ticketsData = ticketsData.filter((ticket: Ticket) =>
-            ticket.spoc_user_id === userId ||
-            ticket.created_by === userId ||
-            ticket.assigned_to === userId ||
-            teamMemberIds.includes(ticket.created_by) ||
-            teamMemberIds.includes(ticket.assigned_to || 0)
+            Number(ticket.spoc_user_id) === userId ||
+            Number(ticket.created_by) === userId ||
+            Number(ticket.assigned_to) === userId ||
+            teamMemberIds.includes(Number(ticket.created_by)) ||
+            teamMemberIds.includes(Number(ticket.assigned_to) || 0)
           )
         } else {
           // Default: show only user's own tickets
           ticketsData = ticketsData.filter((ticket: Ticket) =>
-            ticket.spoc_user_id === userId ||
-            ticket.created_by === userId ||
-            ticket.assigned_to === userId
+            Number(ticket.spoc_user_id) === userId ||
+            Number(ticket.created_by) === userId ||
+            Number(ticket.assigned_to) === userId
           )
         }
       }
