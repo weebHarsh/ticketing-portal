@@ -435,6 +435,9 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
     XLSX.writeFile(wb, filename)
   }
 
+  // Debug panel for troubleshooting
+  const [showDebug, setShowDebug] = useState(false)
+
   if (isLoading) {
     return (
       <div className="bg-white border border-border rounded-xl overflow-hidden">
@@ -448,6 +451,30 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
       <div className="bg-white border border-border rounded-xl overflow-hidden">
         <div className="p-8 text-center text-foreground-secondary">
           No tickets found. Try adjusting your filters or create a new ticket.
+        </div>
+        {/* Debug panel for troubleshooting */}
+        <div className="p-4 border-t border-border bg-yellow-50">
+          <button
+            onClick={() => setShowDebug(!showDebug)}
+            className="text-xs text-yellow-700 underline"
+          >
+            {showDebug ? "Hide Debug Info" : "Show Debug Info"}
+          </button>
+          {showDebug && (
+            <div className="mt-2 text-xs font-mono bg-white p-3 rounded border overflow-auto max-h-60">
+              <p><strong>Current User:</strong></p>
+              <pre>{JSON.stringify(currentUser, null, 2)}</pre>
+              <p className="mt-2"><strong>User ID for filtering:</strong> {currentUser?.id ? Number(currentUser.id) : 'null'}</p>
+              <p><strong>User Role:</strong> {currentUser?.role || 'undefined'}</p>
+              <p><strong>Is Admin:</strong> {String(currentUser?.role?.toLowerCase() === 'admin')}</p>
+              <p className="mt-2"><strong>Filters Applied:</strong></p>
+              <pre>{JSON.stringify(filters, null, 2)}</pre>
+              <p className="mt-2 text-red-600">
+                <strong>Tip:</strong> If user ID is wrong, try logging out and back in.
+                Check browser console (F12) for detailed logs.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     )
