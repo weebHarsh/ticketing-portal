@@ -137,13 +137,39 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
       const result = await getTickets(filters)
 
       if (result.success && result.data) {
-        const ticketsData = Array.isArray(result.data) ? result.data : []
+        let ticketsData = Array.isArray(result.data) ? result.data : []
 
-        // TEMPORARILY: Show ALL tickets without any client-side filtering
-        // This ensures tickets are loading from the server correctly
+        // Apply user-based filtering (non-admin users only see their own tickets)
+        const isAdmin = currentUser?.role?.toLowerCase() === 'admin'
+        const userId = currentUser?.id ? Number(currentUser.id) : 0
+
+        if (!isAdmin && userId > 0) {
+          if (filters?.myTeam) {
+            // My Team: show user's tickets + team members' tickets
+            const teamResult = await getMyTeamMembers(userId)
+            const teamMemberIds = teamResult.success && teamResult.data
+              ? teamResult.data.map((m: any) => Number(m.id))
+              : []
+
+            ticketsData = ticketsData.filter((ticket: Ticket) =>
+              Number(ticket.spoc_user_id) === userId ||
+              Number(ticket.created_by) === userId ||
+              Number(ticket.assigned_to) === userId ||
+              teamMemberIds.includes(Number(ticket.created_by)) ||
+              teamMemberIds.includes(Number(ticket.assigned_to))
+            )
+          } else {
+            // Default: show only user's own tickets
+            ticketsData = ticketsData.filter((ticket: Ticket) =>
+              Number(ticket.spoc_user_id) === userId ||
+              Number(ticket.created_by) === userId ||
+              Number(ticket.assigned_to) === userId
+            )
+          }
+        }
+
         setTickets(ticketsData)
       } else {
-        console.error('Failed to load tickets:', result.error)
         setTickets([])
       }
     } catch (error) {
