@@ -5,10 +5,10 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import DashboardLayout from "@/components/layout/dashboard-layout"
-import { ArrowLeft, Save, Paperclip, Download, Trash2, FileText, Plus, X, Upload } from "lucide-react"
+import { ArrowLeft, Save, Paperclip, Download, Trash2, FileText, Plus, X, Upload, AlertTriangle, Lock } from "lucide-react"
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
-import { getTicketById } from "@/lib/actions/tickets"
+import { getTicketById, canEditTicket } from "@/lib/actions/tickets"
 import { getBusinessUnitGroups, getCategories, getSubcategories } from "@/lib/actions/master-data"
 import { getUsers } from "@/lib/actions/tickets"
 import { Button } from "@/components/ui/button"
@@ -21,6 +21,11 @@ export default function EditTicketPage() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [editPermissions, setEditPermissions] = useState<{
+    canEdit: boolean
+    restrictedToDescription: boolean
+    reason?: string
+  }>({ canEdit: true, restrictedToDescription: false })
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -48,12 +53,23 @@ export default function EditTicketPage() {
 
   const loadData = async () => {
     setLoading(true)
-    const [ticketResult, buResult, catResult, usersResult] = await Promise.all([
+    const [ticketResult, buResult, catResult, usersResult, permResult] = await Promise.all([
       getTicketById(Number(ticketId)),
       getBusinessUnitGroups(),
       getCategories(),
       getUsers(),
+      canEditTicket(Number(ticketId)),
     ])
+
+    // Set edit permissions
+    setEditPermissions(permResult)
+
+    // If user can't edit at all, redirect back
+    if (!permResult.canEdit) {
+      alert(permResult.reason || "You don't have permission to edit this ticket")
+      router.back()
+      return
+    }
 
     if (ticketResult.success) {
       const ticket = ticketResult.data
@@ -233,17 +249,34 @@ export default function EditTicketPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Restriction Warning */}
+          {editPermissions.restrictedToDescription && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+              <Lock className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-800">Limited Edit Mode</p>
+                <p className="text-sm text-amber-700 mt-1">
+                  This ticket has been assigned. Only the description can be edited.
+                  To change status, use the status change option on the ticket detail page.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="bg-white border border-border rounded-xl p-6 space-y-4">
             <h3 className="font-poppins font-semibold text-foreground">Basic Information</h3>
 
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Title *</label>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Title * {editPermissions.restrictedToDescription && <Lock className="inline w-3 h-3 text-muted-foreground" />}
+              </label>
               <input
                 type="text"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 required
-                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+                disabled={editPermissions.restrictedToDescription}
+                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -259,26 +292,37 @@ export default function EditTicketPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Status *</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  required
-                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
-                >
-                  <option value="open">Open</option>
-                  <option value="hold">On Hold</option>
-                  <option value="closed">Closed</option>
-                </select>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Status {editPermissions.restrictedToDescription && <Lock className="inline w-3 h-3 text-muted-foreground" />}
+                </label>
+                <div className="relative">
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    disabled={editPermissions.restrictedToDescription}
+                    className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                  >
+                    <option value="open">Open</option>
+                    <option value="hold">On Hold</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                  {editPermissions.restrictedToDescription && (
+                    <p className="text-xs text-muted-foreground mt-1">Use ticket detail page to change status with remarks</p>
+                  )}
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Priority *</label>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Priority * {editPermissions.restrictedToDescription && <Lock className="inline w-3 h-3 text-muted-foreground" />}
+                </label>
                 <select
                   value={formData.priority}
                   onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
                   required
-                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+                  disabled={editPermissions.restrictedToDescription}
+                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -290,7 +334,10 @@ export default function EditTicketPage() {
           </div>
 
           <div className="bg-white border border-border rounded-xl p-6 space-y-4">
-            <h3 className="font-poppins font-semibold text-foreground">Classification</h3>
+            <h3 className="font-poppins font-semibold text-foreground flex items-center gap-2">
+              Classification
+              {editPermissions.restrictedToDescription && <Lock className="w-4 h-4 text-muted-foreground" />}
+            </h3>
 
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">Business Unit Group *</label>
@@ -298,7 +345,8 @@ export default function EditTicketPage() {
                 value={formData.businessUnitGroupId}
                 onChange={(e) => setFormData({ ...formData, businessUnitGroupId: e.target.value })}
                 required
-                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+                disabled={editPermissions.restrictedToDescription}
+                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
               >
                 <option value="">Select...</option>
                 {businessUnitGroups.map((bu) => (
@@ -315,7 +363,8 @@ export default function EditTicketPage() {
                 value={formData.categoryId}
                 onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
                 required
-                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+                disabled={editPermissions.restrictedToDescription}
+                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
               >
                 <option value="">Select...</option>
                 {categories.map((cat) => (
@@ -332,8 +381,8 @@ export default function EditTicketPage() {
                 value={formData.subcategoryId}
                 onChange={(e) => setFormData({ ...formData, subcategoryId: e.target.value })}
                 required
-                disabled={!formData.categoryId}
-                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm disabled:opacity-50"
+                disabled={editPermissions.restrictedToDescription || !formData.categoryId}
+                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
               >
                 <option value="">Select...</option>
                 {subcategories.map((sub) => (
@@ -346,7 +395,10 @@ export default function EditTicketPage() {
           </div>
 
           <div className="bg-white border border-border rounded-xl p-6 space-y-4">
-            <h3 className="font-poppins font-semibold text-foreground">Assignment</h3>
+            <h3 className="font-poppins font-semibold text-foreground flex items-center gap-2">
+              Assignment
+              {editPermissions.restrictedToDescription && <Lock className="w-4 h-4 text-muted-foreground" />}
+            </h3>
 
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">Assignee *</label>
@@ -354,7 +406,8 @@ export default function EditTicketPage() {
                 value={formData.assigneeId}
                 onChange={(e) => setFormData({ ...formData, assigneeId: e.target.value })}
                 required
-                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+                disabled={editPermissions.restrictedToDescription}
+                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
               >
                 <option value="">Select...</option>
                 {users.map((user) => (
@@ -371,7 +424,8 @@ export default function EditTicketPage() {
                 type="text"
                 value={formData.estimatedDuration}
                 onChange={(e) => setFormData({ ...formData, estimatedDuration: e.target.value })}
-                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+                disabled={editPermissions.restrictedToDescription}
+                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
               />
             </div>
           </div>
