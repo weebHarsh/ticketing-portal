@@ -13,6 +13,9 @@ import {
   ChevronDown,
   Menu,
   X,
+  UserCog,
+  FileText,
+  Trash2,
 } from "lucide-react"
 import NotificationsDropdown from "./notifications-dropdown"
 
@@ -46,8 +49,11 @@ export default function HorizontalNav() {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: Home },
     { href: "/tickets", label: "Tickets", icon: TicketIcon },
-    { href: "/analytics", label: "Reports", icon: BarChart3, adminOnly: true },
+    { href: "/analytics", label: "Analytics", icon: BarChart3 },
     { href: "/master-data", label: "Master Settings", icon: Database, adminOnly: true },
+    { href: "/users", label: "Users", icon: UserCog, adminOnly: true },
+    { href: "/admin/reports", label: "Admin Reports", icon: FileText, adminOnly: true },
+    { href: "/admin/tickets", label: "Deleted Tickets", icon: Trash2, adminOnly: true },
   ]
 
   const filteredNavItems = navItems.filter((item) => {
