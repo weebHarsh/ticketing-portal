@@ -17,7 +17,9 @@ import { getMyTeamMembers } from "@/lib/actions/my-team"
 import * as XLSX from "xlsx"
 import AssigneeModal from "./assignee-modal"
 import ProjectModal from "./project-modal"
+import StatusChangeModal from "./status-change-modal"
 import { FolderKanban } from "lucide-react"
+import { updateTicketStatusWithRemarks } from "@/lib/actions/tickets"
 
 interface Ticket {
   id: number
@@ -90,6 +92,10 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
   // Modal state for project selection
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false)
   const [selectedTicketForProject, setSelectedTicketForProject] = useState<Ticket | null>(null)
+
+  // Modal state for status change
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false)
+  const [selectedTicketForStatus, setSelectedTicketForStatus] = useState<Ticket | null>(null)
 
   // Attachments dropdown state
   const [attachmentsDropdownOpen, setAttachmentsDropdownOpen] = useState<number | null>(null)
@@ -289,15 +295,18 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
     )
   }
 
-  const handleStatusChange = async (ticketId: number, newStatus: string) => {
-    const result = await updateTicketStatus(ticketId, newStatus)
+  const openStatusModal = (ticket: Ticket) => {
+    setSelectedTicketForStatus(ticket)
+    setIsStatusModalOpen(true)
+  }
+
+  const handleStatusChangeConfirm = async (newStatus: string, remarks: string) => {
+    if (!selectedTicketForStatus) return
+    const result = await updateTicketStatusWithRemarks(selectedTicketForStatus.id, newStatus, remarks)
     if (result.success) {
-      // Update local state to reflect change without page refresh
-      setTickets(tickets.map(t =>
-        t.id === ticketId ? { ...t, status: newStatus as "open" | "closed" | "hold" } : t
-      ))
+      loadTickets()
     } else {
-      alert("Failed to update status: " + (result.error || "Unknown error"))
+      throw new Error(result.error || "Failed to update status")
     }
   }
 
@@ -600,11 +609,12 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                 {/* Status */}
                 <td className="px-3 py-2.5 whitespace-nowrap">
                   {canEditStatus(ticket) && ticket.status !== "deleted" ? (
-                    <select
-                      value={ticket.status}
-                      onChange={(e) => handleStatusChange(ticket.id, e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                      className={`px-2 py-1 rounded text-xs font-medium border focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer ${
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openStatusModal(ticket)
+                      }}
+                      className={`px-2 py-1 rounded text-xs font-medium border hover:opacity-80 transition-opacity cursor-pointer ${
                         ticket.status === "open"
                           ? "bg-blue-50 text-blue-700 border-blue-200"
                           : ticket.status === "closed"
@@ -616,12 +626,9 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
                           : "bg-yellow-50 text-yellow-700 border-yellow-200"
                       }`}
                     >
-                      <option value="open">Open</option>
-                      <option value="on-hold">On-Hold</option>
-                      <option value="resolved">Resolved</option>
-                      <option value="closed">Closed</option>
-                      <option value="returned">Returned</option>
-                    </select>
+                      {ticket.status === "on-hold" ? "On-Hold" : ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
+                      <Edit className="w-3 h-3 inline ml-1 opacity-50" />
+                    </button>
                   ) : (
                     <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${statusColor[ticket.status] || statusColor["open"]}`}>
                       {ticket.status === "on-hold" ? "On-Hold" : ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
@@ -756,6 +763,27 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
         currentProjectId={selectedTicketForProject?.project_id || null}
         ticketTitle={selectedTicketForProject?.title || ""}
       />
+
+      {/* Status Change Modal */}
+      {currentUser && selectedTicketForStatus && (
+        <StatusChangeModal
+          isOpen={isStatusModalOpen}
+          onClose={() => {
+            setIsStatusModalOpen(false)
+            setSelectedTicketForStatus(null)
+          }}
+          onConfirm={handleStatusChangeConfirm}
+          currentStatus={selectedTicketForStatus.status}
+          ticketNumber={selectedTicketForStatus.ticket_number}
+          ticketTitle={selectedTicketForStatus.title}
+          currentUser={{ id: Number(currentUser.id), role: currentUser.role }}
+          ticket={{
+            created_by: selectedTicketForStatus.created_by,
+            assigned_to: selectedTicketForStatus.assigned_to,
+            spoc_user_id: selectedTicketForStatus.spoc_user_id,
+          }}
+        />
+      )}
     </div>
   )
 }

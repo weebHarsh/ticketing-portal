@@ -919,6 +919,13 @@ export async function createSubTicket(parentTicketId: number, data: {
       RETURNING *
     `
 
+    // Update parent ticket to mark as parent and increment child count
+    await sql`
+      UPDATE tickets
+      SET is_parent = TRUE, child_count = COALESCE(child_count, 0) + 1
+      WHERE id = ${parentTicketId}
+    `
+
     revalidatePath("/dashboard")
     revalidatePath("/tickets")
     revalidatePath(`/tickets/${parentTicketId}`)
