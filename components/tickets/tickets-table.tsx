@@ -133,50 +133,22 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
 
   const loadTickets = async () => {
     setIsLoading(true)
-    const result = await getTickets(filters)
+    try {
+      const result = await getTickets(filters)
 
-    if (result.success && result.data) {
-      let ticketsData = Array.isArray(result.data) ? result.data : []
+      if (result.success && result.data) {
+        const ticketsData = Array.isArray(result.data) ? result.data : []
 
-      // Only apply user-based filtering if:
-      // 1. User is logged in (currentUser exists)
-      // 2. User has an ID
-      // 3. User is NOT an admin
-      if (currentUser?.id && currentUser?.role?.toLowerCase() !== "admin") {
-        const userId = Number(currentUser.id)
-
-        // Only filter if userId is valid
-        if (!isNaN(userId) && userId > 0) {
-          if (filters?.myTeam) {
-            // My Team filter: include user's tickets + team members' tickets
-            const teamResult = await getMyTeamMembers(userId)
-            const teamMemberIds = teamResult.success && teamResult.data
-              ? teamResult.data.map((m: any) => Number(m.id))
-              : []
-
-            ticketsData = ticketsData.filter((ticket: Ticket) => {
-              const isUserTicket =
-                Number(ticket.spoc_user_id) === userId ||
-                Number(ticket.created_by) === userId ||
-                Number(ticket.assigned_to) === userId
-              const isTeamTicket =
-                teamMemberIds.includes(Number(ticket.created_by)) ||
-                teamMemberIds.includes(Number(ticket.assigned_to))
-              return isUserTicket || isTeamTicket
-            })
-          } else {
-            // Default: show user's own tickets (where they are SPOC, creator, or assignee)
-            ticketsData = ticketsData.filter((ticket: Ticket) =>
-              Number(ticket.spoc_user_id) === userId ||
-              Number(ticket.created_by) === userId ||
-              Number(ticket.assigned_to) === userId
-            )
-          }
-        }
+        // TEMPORARILY: Show ALL tickets without any client-side filtering
+        // This ensures tickets are loading from the server correctly
+        setTickets(ticketsData)
+      } else {
+        console.error('Failed to load tickets:', result.error)
+        setTickets([])
       }
-      // If admin or no valid user, show all tickets (no filtering)
-
-      setTickets(ticketsData)
+    } catch (error) {
+      console.error('Error loading tickets:', error)
+      setTickets([])
     }
     setIsLoading(false)
   }
@@ -410,21 +382,6 @@ export default function TicketsTable({ filters, onExportReady }: TicketsTablePro
       <div className="bg-white border border-border rounded-xl overflow-hidden">
         <div className="p-8 text-center text-foreground-secondary">
           No tickets found. Try adjusting your filters or create a new ticket.
-        </div>
-        <div className="p-4 border-t border-border bg-yellow-50 text-xs">
-          <p className="text-yellow-800 mb-2">
-            <strong>Debug:</strong> User ID: {currentUser?.id || 'none'}, Role: {currentUser?.role || 'none'}
-          </p>
-          <button
-            onClick={() => {
-              localStorage.clear()
-              document.cookie = 'user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-              window.location.href = '/login'
-            }}
-            className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-          >
-            Clear Cache & Re-login
-          </button>
         </div>
       </div>
     )
