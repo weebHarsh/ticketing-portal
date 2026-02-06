@@ -7,7 +7,7 @@ import { getCurrentUser } from "./auth"
 export async function getDelayedTicketsReport() {
   try {
     const currentUser = await getCurrentUser()
-    if (!currentUser || currentUser.role !== "admin") {
+    if (!currentUser || currentUser.role?.toLowerCase() !== "admin") {
       return { success: false, error: "Admin access required" }
     }
 
@@ -79,7 +79,7 @@ export async function getDelayedTicketsReport() {
 export async function getGroupLevelAnalytics() {
   try {
     const currentUser = await getCurrentUser()
-    if (!currentUser || currentUser.role !== "admin") {
+    if (!currentUser || currentUser.role?.toLowerCase() !== "admin") {
       return { success: false, error: "Admin access required" }
     }
 
@@ -116,7 +116,7 @@ export async function getGroupLevelAnalytics() {
 export async function getTicketStatusDistribution() {
   try {
     const currentUser = await getCurrentUser()
-    if (!currentUser || currentUser.role !== "admin") {
+    if (!currentUser || currentUser.role?.toLowerCase() !== "admin") {
       return { success: false, error: "Admin access required" }
     }
 
@@ -141,7 +141,7 @@ export async function getTicketStatusDistribution() {
 export async function getTicketTrendData(days: number = 30) {
   try {
     const currentUser = await getCurrentUser()
-    if (!currentUser || currentUser.role !== "admin") {
+    if (!currentUser || currentUser.role?.toLowerCase() !== "admin") {
       return { success: false, error: "Admin access required" }
     }
 
@@ -168,7 +168,7 @@ export async function getTicketTrendData(days: number = 30) {
 export async function getUserPerformanceMetrics() {
   try {
     const currentUser = await getCurrentUser()
-    if (!currentUser || currentUser.role !== "admin") {
+    if (!currentUser || currentUser.role?.toLowerCase() !== "admin") {
       return { success: false, error: "Admin access required" }
     }
 
@@ -206,7 +206,7 @@ export async function getUserPerformanceMetrics() {
 export async function getRedirectStatistics() {
   try {
     const currentUser = await getCurrentUser()
-    if (!currentUser || currentUser.role !== "admin") {
+    if (!currentUser || currentUser.role?.toLowerCase() !== "admin") {
       return { success: false, error: "Admin access required" }
     }
 
@@ -232,7 +232,7 @@ export async function getRedirectStatistics() {
 export async function getSummaryStatistics() {
   try {
     const currentUser = await getCurrentUser()
-    if (!currentUser || currentUser.role !== "admin") {
+    if (!currentUser || currentUser.role?.toLowerCase() !== "admin") {
       return { success: false, error: "Admin access required" }
     }
 

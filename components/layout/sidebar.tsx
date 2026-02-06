@@ -14,9 +14,20 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [adminExpanded, setAdminExpanded] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
 
-  // Auto-expand admin section when on admin pages
+  // Check if user is admin and auto-expand admin section when on admin pages
   useEffect(() => {
+    try {
+      const userData = localStorage.getItem("user")
+      if (userData) {
+        const user = JSON.parse(userData)
+        setIsAdmin(user.role?.toLowerCase() === "admin")
+      }
+    } catch (e) {
+      setIsAdmin(false)
+    }
+
     if (pathname.startsWith("/admin")) {
       setAdminExpanded(true)
     }
@@ -97,42 +108,44 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               </Link>
             ))}
 
-            {/* Admin Section */}
-            <div className="pt-2">
-              <button
-                onClick={() => setAdminExpanded(!adminExpanded)}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all ${
-                  pathname.startsWith("/admin") ? "bg-primary/10 text-primary" : "text-foreground hover:bg-surface"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Settings className="w-5 h-5" />
-                  <span className="text-sm font-medium">Admin</span>
-                </div>
-                {adminExpanded ? (
-                  <ChevronDown className="w-4 h-4" />
-                ) : (
-                  <ChevronRight className="w-4 h-4" />
+            {/* Admin Section - Only visible to admins */}
+            {isAdmin && (
+              <div className="pt-2">
+                <button
+                  onClick={() => setAdminExpanded(!adminExpanded)}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all ${
+                    pathname.startsWith("/admin") ? "bg-primary/10 text-primary" : "text-foreground hover:bg-surface"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Settings className="w-5 h-5" />
+                    <span className="text-sm font-medium">Admin</span>
+                  </div>
+                  {adminExpanded ? (
+                    <ChevronDown className="w-4 h-4" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" />
+                  )}
+                </button>
+                {adminExpanded && (
+                  <div className="ml-4 mt-1 space-y-1">
+                    {adminItems.map(({ href, label, icon: Icon }) => (
+                      <Link
+                        key={href}
+                        href={href}
+                        onClick={() => setIsOpen(false)}
+                        className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
+                          pathname === href ? "bg-primary text-white" : "text-foreground hover:bg-surface"
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span className="text-sm">{label}</span>
+                      </Link>
+                    ))}
+                  </div>
                 )}
-              </button>
-              {adminExpanded && (
-                <div className="ml-4 mt-1 space-y-1">
-                  {adminItems.map(({ href, label, icon: Icon }) => (
-                    <Link
-                      key={href}
-                      href={href}
-                      onClick={() => setIsOpen(false)}
-                      className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
-                        pathname === href ? "bg-primary text-white" : "text-foreground hover:bg-surface"
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span className="text-sm">{label}</span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </nav>
 
           {/* Logout */}
