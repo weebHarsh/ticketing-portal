@@ -162,9 +162,11 @@ export default function UsersPage() {
       </div>
 
       {/* Create User Modal */}
-      {showCreateModal && (
-        <CreateUserModal onClose={() => setShowCreateModal(false)} onUserCreated={handleUserCreated} />
-      )}
+      <CreateUserModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={handleUserCreated}
+      />
 
       {/* Edit User Modal */}
       {showEditModal && selectedUser && (

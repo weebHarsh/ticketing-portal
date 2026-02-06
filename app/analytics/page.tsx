@@ -19,20 +19,12 @@ export default function AnalyticsPage() {
     }
 
     const parsedUser = JSON.parse(userData)
-    const userRole = parsedUser.role?.toLowerCase()
-
-    // Only admins can access this page
-    if (userRole !== "admin") {
-      router.push("/dashboard")
-      return
-    }
-
     setUser(parsedUser)
     setIsLoading(false)
   }, [router])
 
-  // Show loading or nothing while checking permissions
-  if (isLoading || !user || user.role?.toLowerCase() !== "admin") {
+  // Show loading while checking user
+  if (isLoading || !user) {
     return null
   }
 
